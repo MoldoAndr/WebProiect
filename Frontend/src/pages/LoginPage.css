@@ -146,26 +146,24 @@ body {
   z-index: 5;
 }
 
-.login-left {
-  display: grid;
-  place-items: center;
-  background: rgb(255,255,255);
-  padding: 2rem;
-}
-
 .login-left img {
   width: min(80%, 600px);
   height: auto;
   object-fit: contain;
 }
+.login-left {
+  display: grid;
+  place-items: center;
+  background: white;
+  padding: 2rem;
+}
 
 .login-right {
   display: grid;
   place-items: center;
-  background: linear-gradient(90deg, rgba(255,255,255,1) 0%, rgba(0,0,0,1) 30%, rgba(0,0,0,1) 100%); 
+  background: black;
   padding: clamp(1rem, 5vw, 3rem);
 }
-
 .login-right-container {
   width: min(100%, 480px);
 }
@@ -201,6 +199,38 @@ body {
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
+}
+
+/* Target all input types (text, email, password, etc.) and select elements */
+.login-center input[type="text"],
+.login-center input[type="email"],
+.login-center input[type="password"],
+.login-center select,
+.pass-input-div input {
+  width: 100%;
+  padding: var(--input-padding);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  outline: none;
+  transition: all var(--transition-speed) ease;
+}
+
+/* Add hover and focus states for consistency */
+.login-center input[type="text"]:hover,
+.login-center input[type="email"]:hover,
+.login-center input[type="password"]:hover,
+.login-center select:hover,
+.pass-input-div input:hover {
+  border-color: var(--hover-border-color);
+}
+
+.login-center input[type="text"]:focus,
+.login-center input[type="email"]:focus,
+.login-center input[type="password"]:focus,
+.login-center select:focus,
+.pass-input-div input:focus {
+  border-color: var(--focus-border-color);
+  box-shadow: 0 0 0 2px var(--focus-shadow-color);
 }
 
 /* Inputs */

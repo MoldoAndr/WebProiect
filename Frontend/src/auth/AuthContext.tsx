@@ -44,9 +44,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.removeItem('authToken');
   }
 
-  // In a real app, you might also check localStorage for an existing token
-  // on mount (useEffect) and fetch user details to auto-login the user.
-
   return (
     <AuthContext.Provider value={{ user, login, signup, logout }}>
       {children}

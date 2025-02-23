@@ -13,7 +13,7 @@
 - Un **frontend** modern (React) servit de Nginx.  
 - Un **backend** (FastAPI) care gestionează logica de business.  
 - O **bază de date** (MongoDB) pentru persistența datelor.  
-- Un **container dedicat** pentru LLM-uri
+- Un **containere dedicate** pentru LLM-uri
 
 ### **Aplicatia este disponibila prin intermediul unui docker, pentru integrare se foloseste docker-compose**
 
