@@ -1,0 +1,106 @@
+services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: llm-studio-frontend
+    restart: unless-stopped
+    networks:
+      - llm-studio-network
+    depends_on:
+      - backend
+    volumes:
+      - frontend-build:/app/build
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: llm-studio-backend
+    restart: unless-stopped
+    networks:
+      - llm-studio-network
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    environment:
+      - SECRET_KEY=${SECRET_KEY}
+      - REFRESH_SECRET_KEY=${REFRESH_SECRET_KEY}
+      - MONGO_USER=${MONGO_USER}
+      - MONGO_PASSWORD=${MONGO_PASSWORD}
+      - MONGO_HOST=mongodb
+      - MONGO_DB=llm_studio
+      - FRONTEND_URL=${FRONTEND_URL:-https://localhost}
+      - LOG_LEVEL=info
+    volumes:
+      - ./backend/app:/app/app
+    ports:
+      - "8000:8000"
+
+  llm-management:
+    build:
+      context: ./llm-management
+      dockerfile: Dockerfile
+    container_name: llm-studio-llm-management
+    restart: on-failure
+    networks:
+      - llm-studio-network
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./llm-management/app:/app/app
+      - ./docker_service.py:/app/app/services/docker_service.py
+    environment:
+      - MONGO_USER=${MONGO_USER}
+      - MONGO_PASSWORD=${MONGO_PASSWORD}
+      - MONGO_HOST=mongodb
+      - MONGO_DB=llm_studio
+      - LOG_LEVEL=info
+
+  mongodb:
+    image: mongo:latest
+    container_name: llm-studio-mongodb
+    restart: unless-stopped
+    networks:
+      - llm-studio-network
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=${MONGO_USER}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_PASSWORD}
+      - MONGO_INITDB_DATABASE=llm_studio
+    volumes:
+      - mongodb-data:/data/db
+      - ./mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+    command: ["--auth"]
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')", "-u", "${MONGO_USER}", "-p", "${MONGO_PASSWORD}", "--authenticationDatabase", "admin"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  nginx:
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    container_name: llm-studio-nginx
+    restart: unless-stopped
+    networks:
+      - llm-studio-network
+    ports:
+      - "443:443"
+      - "80:80"
+    depends_on:
+      - frontend
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - frontend-build:/usr/share/nginx/html
+
+networks:
+  llm-studio-network:
+    driver: bridge
+
+volumes:
+  mongodb-data:
+  frontend-build:
