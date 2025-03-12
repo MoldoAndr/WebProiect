@@ -8,19 +8,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Python dependencies
+# Copy requirements first to leverage Docker cache
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
 COPY . .
 
-# Expose the port the API will run on
-EXPOSE 8000
-
 # Create a non-root user and switch to it
 RUN useradd -m appuser && chown -R appuser:appuser /app
 USER appuser
 
-# Run the FastAPI application with uvicorn
+# Expose the port the API will run on
+EXPOSE 8000
+
+# Command is specified in docker-compose.yml
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

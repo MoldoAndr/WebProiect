@@ -21,6 +21,7 @@ db.users.insertOne({
     username: "admin",
     email: "admin@llmstudio.com",
     hashed_password: "$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW", // "password"
+    full_name: "System Administrator",
     role: "admin",
     is_active: true,
     created_at: new Date(),
@@ -32,6 +33,7 @@ db.users.insertOne({
     username: "technician",
     email: "technician@llmstudio.com",
     hashed_password: "$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW", // "password"
+    full_name: "System Technician",
     role: "technician",
     is_active: true,
     created_at: new Date(),
@@ -43,6 +45,7 @@ db.users.insertOne({
     username: "user",
     email: "user@llmstudio.com",
     hashed_password: "$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW", // "password"
+    full_name: "Regular User",
     role: "user",
     is_active: true,
     created_at: new Date(),
@@ -78,6 +81,35 @@ db.llms.insertMany([
             top_p: 1.0,
             presence_penalty: 0,
             frequency_penalty: 0
+        },
+        status: "active",
+        created_at: new Date(),
+        updated_at: new Date()
+    },
+    {
+        name: "Claude 3",
+        description: "Anthropic's Claude 3 model",
+        image: "anthropic/claude:latest",
+        api_endpoint: "https://api.anthropic.com/v1/complete",
+        parameters: {
+            max_tokens_to_sample: 4096,
+            temperature: 0.7,
+            top_p: 1.0,
+            top_k: 5
+        },
+        status: "active",
+        created_at: new Date(),
+        updated_at: new Date()
+    },
+    {
+        name: "Llama 3",
+        description: "Meta's Llama 3 model",
+        image: "meta/llama:latest",
+        api_endpoint: "http://localhost:8080/v1/completions",
+        parameters: {
+            max_tokens: 2048,
+            temperature: 0.7,
+            top_p: 0.9
         },
         status: "active",
         created_at: new Date(),

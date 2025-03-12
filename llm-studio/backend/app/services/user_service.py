@@ -1,19 +1,14 @@
-# app/services/user_service.py
 from typing import Optional, Dict, Any, List
 from bson import ObjectId
-from datetime import datetime
-
 from app.db.mongodb import get_database
 from app.models.user import User, UserCreate, UserUpdate
 from app.utils.password import get_password_hash
+from datetime import datetime
 
 async def get_user_by_id(user_id: str) -> Optional[User]:
     """Get a user by ID from the database"""
     db = await get_database()
-    try:
-        user_data = await db.users.find_one({"_id": ObjectId(user_id)})
-    except:
-        return None
+    user_data = await db.users.find_one({"_id": ObjectId(user_id)})
     
     if not user_data:
         return None
@@ -63,7 +58,7 @@ async def create_user(user_data: UserCreate) -> User:
         "email": user_data.email,
         "full_name": user_data.full_name,
         "hashed_password": hashed_password,
-        "role": "user",  # Default role
+        "role": "user",
         "is_active": True,
         "created_at": now,
         "updated_at": now
@@ -75,52 +70,80 @@ async def create_user(user_data: UserCreate) -> User:
     # Return created user
     return await get_user_by_id(str(result.inserted_id))
 
-async def update_user(user_id: str, user_update: UserUpdate) -> Optional[User]:
+async def update_user(user_id: str, user_data: UserUpdate) -> Optional[User]:
     """Update an existing user"""
     db = await get_database()
     
-    # Get current user data to check for changes
+    # Get the current user
     current_user = await get_user_by_id(user_id)
     if not current_user:
         return None
     
     # Prepare update document
-    update_data = user_update.model_dump(exclude_unset=True)
+    update_data = {}
+    if user_data.username is not None:
+        update_data["username"] = user_data.username
+    if user_data.email is not None:
+        update_data["email"] = user_data.email
+    if user_data.full_name is not None:
+        update_data["full_name"] = user_data.full_name
+    if user_data.password is not None:
+        update_data["hashed_password"] = get_password_hash(user_data.password)
+    if user_data.is_active is not None:
+        update_data["is_active"] = user_data.is_active
     
-    # If password is provided, hash it
-    if "password" in update_data:
-        update_data["hashed_password"] = get_password_hash(update_data.pop("password"))
-    
-    # Add updated_at timestamp
+    # Update timestamp
     update_data["updated_at"] = datetime.utcnow()
     
-    # Update the user
+    if not update_data:
+        return current_user
+    
+    # Update user
     await db.users.update_one(
-        {"_id": ObjectId(user_id)}, 
+        {"_id": ObjectId(user_id)},
         {"$set": update_data}
     )
     
     # Return updated user
     return await get_user_by_id(user_id)
 
+async def delete_user(user_id: str) -> bool:
+    """Delete a user"""
+    db = await get_database()
+    
+    # Delete user
+    result = await db.users.delete_one({"_id": ObjectId(user_id)})
+    
+    return result.deleted_count > 0
+
 async def get_all_users(skip: int = 0, limit: int = 100) -> List[User]:
     """Get all users with pagination"""
     db = await get_database()
     cursor = db.users.find().skip(skip).limit(limit)
-    
     users = []
-    async for user_doc in cursor:
+    
+    async for user_data in cursor:
         # Convert ObjectId to str
-        user_doc["id"] = str(user_doc.pop("_id"))
-        users.append(User(**user_doc))
+        user_data["id"] = str(user_data.pop("_id"))
+        users.append(User(**user_data))
     
     return users
 
-async def delete_user(user_id: str) -> bool:
-    """Delete a user by ID"""
+async def update_user_role(user_id: str, role: str) -> Optional[User]:
+    """Update a user's role"""
     db = await get_database()
-    try:
-        result = await db.users.delete_one({"_id": ObjectId(user_id)})
-        return result.deleted_count > 0
-    except:
-        return False
+    
+    # Update user role
+    result = await db.users.update_one(
+        {"_id": ObjectId(user_id)},
+        {"$set": {
+            "role": role,
+            "updated_at": datetime.utcnow()
+        }}
+    )
+    
+    if result.modified_count == 0:
+        return None
+    
+    # Return updated user
+    return await get_user_by_id(user_id)

@@ -28,5 +28,8 @@ RUN mkdir -p /etc/nginx/ssl
 RUN chown -R nginx:nginx /usr/share/nginx/html && \
     chmod -R 755 /usr/share/nginx/html
 
+# Expose ports
+EXPOSE 80 443
+
 # Run Nginx in the foreground
 CMD ["nginx", "-g", "daemon off;"]

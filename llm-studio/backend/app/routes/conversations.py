@@ -7,8 +7,6 @@ from app.models.prompt import PromptRequest, PromptResponse
 from app.core.security import get_current_user
 from app.services.conversation_service import (
     create_conversation, 
-    get_conversations_by_user, 
-    get_conversation, 
     update_conversation,
     delete_conversation
 )
