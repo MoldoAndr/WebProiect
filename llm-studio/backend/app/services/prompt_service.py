@@ -7,7 +7,7 @@ import json
 
 from app.models.prompt import PromptRequest, PromptResponse
 from app.models.llm import LLM
-from app.services.llm_service import get_llm
+from app.services.llm_service import get_llm_by_id
 from app.services.conversation_service import add_message_to_conversation, get_conversation
 from app.core.config import settings
 

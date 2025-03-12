@@ -1,112 +1,126 @@
-# app/api/routes/conversations.py
 from fastapi import APIRouter, Depends, HTTPException, status
 from typing import List, Optional
 
 from app.models.conversation import Conversation, ConversationCreate, ConversationUpdate, ConversationResponse
 from app.models.prompt import PromptRequest, PromptResponse
-from app.core.security import get_current_user
 from app.services.conversation_service import (
     create_conversation, 
+    get_conversation, 
     update_conversation,
-    delete_conversation
+    delete_conversation,
+    get_user_conversations
 )
 from app.services.prompt_service import send_prompt
+from app.core.security import get_current_user
+from app.models.user import User
 
 router = APIRouter()
 
-@router.post("/", response_model=ConversationResponse)
+@router.post("/conversations", response_model=ConversationResponse)
 async def create_new_conversation(
-    conversation_data: ConversationCreate,
-    current_user = Depends(get_current_user)
+    data: ConversationCreate,
+    current_user: User = Depends(get_current_user)
 ):
     """Create a new conversation"""
-    return await create_conversation(current_user.id, conversation_data)
+    try:
+        conversation = await create_conversation(current_user.id, data)
+        return conversation
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/", response_model=List[ConversationResponse])
-async def list_conversations(
-    current_user = Depends(get_current_user),
-    skip: int = 0,
-    limit: int = 100
+@router.get("/conversations", response_model=List[ConversationResponse])
+async def get_conversations(
+    current_user: User = Depends(get_current_user)
 ):
-    """Get user's conversations with pagination"""
-    return await get_conversations_by_user(current_user.id, skip, limit)
+    """Get all conversations for the current user"""
+    try:
+        conversations = await get_user_conversations(current_user.id)
+        return conversations
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/{conversation_id}", response_model=ConversationResponse)
-async def get_conversation_by_id(
+@router.get("/conversations/{conversation_id}", response_model=ConversationResponse)
+async def get_single_conversation(
     conversation_id: str,
-    current_user = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
-    """Get a specific conversation by ID"""
-    conversation = await get_conversation(conversation_id)
-    
-    if not conversation:
-        raise HTTPException(status_code=404, detail="Conversation not found")
-    
-    # Check if user owns this conversation
-    if conversation.user_id != current_user.id and current_user.role != "admin":
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not enough permissions")
-    
-    return conversation
+    """Get a specific conversation"""
+    try:
+        conversation = await get_conversation(conversation_id)
+        if not conversation:
+            raise HTTPException(status_code=404, detail="Conversation not found")
+        
+        # Verify user has access to this conversation
+        if conversation.user_id != current_user.id:
+            raise HTTPException(status_code=403, detail="Access forbidden")
+        
+        return conversation
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
-@router.put("/{conversation_id}", response_model=ConversationResponse)
-async def update_conversation_by_id(
+@router.put("/conversations/{conversation_id}", response_model=ConversationResponse)
+async def update_existing_conversation(
     conversation_id: str,
-    conversation_update: ConversationUpdate,
-    current_user = Depends(get_current_user)
+    data: ConversationUpdate,
+    current_user: User = Depends(get_current_user)
 ):
     """Update a conversation"""
-    # Check if conversation exists and user owns it
-    conversation = await get_conversation(conversation_id)
-    
-    if not conversation:
-        raise HTTPException(status_code=404, detail="Conversation not found")
-    
-    if conversation.user_id != current_user.id and current_user.role != "admin":
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not enough permissions")
-    
-    # Update the conversation
-    return await update_conversation(conversation_id, conversation_update)
+    try:
+        # Check if conversation exists and belongs to user
+        conversation = await get_conversation(conversation_id)
+        if not conversation:
+            raise HTTPException(status_code=404, detail="Conversation not found")
+        
+        if conversation.user_id != current_user.id:
+            raise HTTPException(status_code=403, detail="Access forbidden")
+        
+        updated = await update_conversation(conversation_id, data)
+        if not updated:
+            raise HTTPException(status_code=404, detail="Conversation not found")
+        
+        return updated
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
-@router.delete("/{conversation_id}")
-async def delete_conversation_by_id(
+@router.delete("/conversations/{conversation_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_existing_conversation(
     conversation_id: str,
-    current_user = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """Delete a conversation"""
-    # Check if conversation exists and user owns it
-    conversation = await get_conversation(conversation_id)
-    
-    if not conversation:
-        raise HTTPException(status_code=404, detail="Conversation not found")
-    
-    if conversation.user_id != current_user.id and current_user.role != "admin":
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not enough permissions")
-    
-    # Delete the conversation
-    success = await delete_conversation(conversation_id)
-    if success:
-        return {"message": "Conversation successfully deleted"}
-    else:
-        raise HTTPException(status_code=500, detail="Failed to delete conversation")
+    try:
+        # Check if conversation exists and belongs to user
+        conversation = await get_conversation(conversation_id)
+        if not conversation:
+            raise HTTPException(status_code=404, detail="Conversation not found")
+        
+        if conversation.user_id != current_user.id:
+            raise HTTPException(status_code=403, detail="Access forbidden")
+        
+        result = await delete_conversation(conversation_id)
+        if not result:
+            raise HTTPException(status_code=404, detail="Conversation not found")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
-@router.post("/{conversation_id}/prompt", response_model=PromptResponse)
+@router.post("/conversations/prompt", response_model=PromptResponse)
 async def send_prompt_to_llm(
-    conversation_id: str,
     prompt_request: PromptRequest,
-    current_user = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
-    """Send a prompt to an LLM within a conversation"""
-    # Check if conversation exists and user owns it
-    conversation = await get_conversation(conversation_id)
-    
-    if not conversation:
-        raise HTTPException(status_code=404, detail="Conversation not found")
-    
-    if conversation.user_id != current_user.id and current_user.role != "admin":
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not enough permissions")
-    
-    # Set the conversation ID in the prompt request
-    prompt_request.conversation_id = conversation_id
-    
-    # Send the prompt to the LLM
-    return await send_prompt(prompt_request)
+    """Send a prompt to an LLM"""
+    try:
+        response = await send_prompt(current_user.id, prompt_request)
+        return response
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

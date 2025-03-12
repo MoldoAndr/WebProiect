@@ -8,7 +8,6 @@ import string
 import re
 from app.core.config import settings
 from app.models.token import TokenPayload
-from app.services.user_service import get_user_by_id
 from app.models.user import User
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_STR}/auth/login")
@@ -132,6 +131,7 @@ async def verify_token(token: str, token_type: str = "access") -> TokenPayload:
 
 async def get_current_user(token: str = Depends(oauth2_scheme)) -> User:
     """Get the current user from the JWT token."""
+    from app.services.user_service import get_user_by_id
     try:
         token_data = await verify_token(token)
         

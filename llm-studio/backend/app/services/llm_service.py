@@ -1,45 +1,19 @@
 from typing import Optional, List, Dict, Any
+from datetime import datetime
 from bson import ObjectId
 from app.db.mongodb import get_database
 from app.models.llm import LLM, LLMCreate, LLMUpdate
-from datetime import datetime
-import httpx
-import json
-import time
-
-async def create_llm(llm_data: LLMCreate) -> LLM:
-    """Create a new LLM"""
-    db = await get_database()
-    
-    # Prepare LLM document
-    now = datetime.utcnow()
-    llm_doc = {
-        "name": llm_data.name,
-        "description": llm_data.description,
-        "image": llm_data.image,
-        "api_endpoint": llm_data.api_endpoint,
-        "parameters": llm_data.parameters,
-        "status": "inactive",
-        "created_at": now,
-        "updated_at": now
-    }
-    
-    # Add optional fields
-    if llm_data.environment:
-        llm_doc["environment"] = llm_data.environment
-    if llm_data.memory_limit:
-        llm_doc["memory_limit"] = llm_data.memory_limit
-    if llm_data.cpu_limit:
-        llm_doc["cpu_limit"] = llm_data.cpu_limit
-    
-    # Insert LLM
-    result = await db.llms.insert_one(llm_doc)
-    
-    # Return created LLM
-    return await get_llm_by_id(str(result.inserted_id))
 
 async def get_llm_by_id(llm_id: str) -> Optional[LLM]:
-    """Get an LLM by ID"""
+    """
+    Get an LLM by its ID
+    
+    Args:
+        llm_id: The ID of the LLM
+        
+    Returns:
+        The LLM if found, None otherwise
+    """
     db = await get_database()
     llm_data = await db.llms.find_one({"_id": ObjectId(llm_id)})
     
@@ -51,10 +25,25 @@ async def get_llm_by_id(llm_id: str) -> Optional[LLM]:
     
     return LLM(**llm_data)
 
-async def get_all_llms(skip: int = 0, limit: int = 100) -> List[LLM]:
-    """Get all LLMs"""
+async def get_all_llms(status: Optional[str] = None) -> List[LLM]:
+    """
+    Get all LLMs, optionally filtered by status
+    
+    Args:
+        status: Optional status filter
+        
+    Returns:
+        List of LLMs
+    """
     db = await get_database()
-    cursor = db.llms.find().skip(skip).limit(limit)
+    
+    # Build query
+    query = {}
+    if status:
+        query["status"] = status
+    
+    # Get LLMs
+    cursor = db.llms.find(query)
     llms = []
     
     async for llm_data in cursor:
@@ -64,36 +53,67 @@ async def get_all_llms(skip: int = 0, limit: int = 100) -> List[LLM]:
     
     return llms
 
-async def update_llm(llm_id: str, llm_data: LLMUpdate) -> Optional[LLM]:
-    """Update an LLM"""
+async def create_llm(data: LLMCreate) -> LLM:
+    """
+    Create a new LLM
+    
+    Args:
+        data: The LLM data
+        
+    Returns:
+        The created LLM
+    """
     db = await get_database()
     
-    # Prepare update document
-    update_data = {}
-    if llm_data.name is not None:
-        update_data["name"] = llm_data.name
-    if llm_data.description is not None:
-        update_data["description"] = llm_data.description
-    if llm_data.image is not None:
-        update_data["image"] = llm_data.image
-    if llm_data.api_endpoint is not None:
-        update_data["api_endpoint"] = llm_data.api_endpoint
-    if llm_data.parameters is not None:
-        update_data["parameters"] = llm_data.parameters
-    if llm_data.environment is not None:
-        update_data["environment"] = llm_data.environment
-    if llm_data.memory_limit is not None:
-        update_data["memory_limit"] = llm_data.memory_limit
-    if llm_data.cpu_limit is not None:
-        update_data["cpu_limit"] = llm_data.cpu_limit
-    if llm_data.status is not None:
-        update_data["status"] = llm_data.status
+    # Check if LLM with same name already exists
+    existing = await db.llms.find_one({"name": data.name})
+    if existing:
+        raise ValueError(f"LLM with name '{data.name}' already exists")
     
-    # Update timestamp
+    # Prepare LLM data
+    now = datetime.utcnow()
+    llm_data = {
+        **data.dict(),
+        "status": "active",
+        "created_at": now,
+        "updated_at": now
+    }
+    
+    # Insert LLM
+    result = await db.llms.insert_one(llm_data)
+    llm_id = str(result.inserted_id)
+    
+    # Return the created LLM
+    llm_data["id"] = llm_id
+    return LLM(**llm_data)
+
+async def update_llm(llm_id: str, data: LLMUpdate) -> Optional[LLM]:
+    """
+    Update an existing LLM
+    
+    Args:
+        llm_id: The ID of the LLM to update
+        data: The updated LLM data
+        
+    Returns:
+        The updated LLM if found, None otherwise
+    """
+    db = await get_database()
+    
+    # Check if LLM exists
+    existing = await get_llm_by_id(llm_id)
+    if not existing:
+        return None
+    
+    # Check if name is being changed and if new name is already taken
+    if data.name and data.name != existing.name:
+        name_check = await db.llms.find_one({"name": data.name})
+        if name_check:
+            raise ValueError(f"LLM with name '{data.name}' already exists")
+    
+    # Prepare update data excluding None values
+    update_data = {k: v for k, v in data.dict().items() if v is not None}
     update_data["updated_at"] = datetime.utcnow()
-    
-    if not update_data:
-        return await get_llm_by_id(llm_id)
     
     # Update LLM
     result = await db.llms.update_one(
@@ -104,11 +124,19 @@ async def update_llm(llm_id: str, llm_data: LLMUpdate) -> Optional[LLM]:
     if result.modified_count == 0:
         return None
     
-    # Return updated LLM
+    # Return the updated LLM
     return await get_llm_by_id(llm_id)
 
 async def delete_llm(llm_id: str) -> bool:
-    """Delete an LLM"""
+    """
+    Delete an LLM
+    
+    Args:
+        llm_id: The ID of the LLM to delete
+        
+    Returns:
+        True if deleted, False if not found
+    """
     db = await get_database()
     
     # Delete LLM
@@ -116,82 +144,48 @@ async def delete_llm(llm_id: str) -> bool:
     
     return result.deleted_count > 0
 
-async def send_prompt_to_llm(llm_id: str, prompt: str, system_prompt: Optional[str] = None, parameters: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-    """Send a prompt to an LLM and get a response"""
-    # Get LLM
-    llm = await get_llm_by_id(llm_id)
-    if not llm:
+async def get_llm_usage_stats(llm_id: str) -> Dict[str, Any]:
+    """
+    Get usage statistics for an LLM
+    
+    Args:
+        llm_id: The ID of the LLM
+        
+    Returns:
+        Dictionary with usage statistics
+    """
+    db = await get_database()
+    
+    # Check if LLM exists
+    existing = await get_llm_by_id(llm_id)
+    if not existing:
         raise ValueError(f"LLM with ID {llm_id} not found")
     
-    if llm.status != "active":
-        raise ValueError(f"LLM {llm.name} is not active")
+    # Count conversations that used this LLM
+    conversation_count = await db.conversations.count_documents({"llm_id": llm_id})
     
-    # Merge default parameters with provided parameters
-    merged_parameters = llm.parameters.copy()
-    if parameters:
-        merged_parameters.update(parameters)
+    # Count unique users that used this LLM
+    pipeline = [
+        {"$match": {"llm_id": llm_id}},
+        {"$group": {"_id": "$user_id"}},
+        {"$count": "user_count"}
+    ]
+    user_count_result = await db.conversations.aggregate(pipeline).to_list(length=1)
+    user_count = user_count_result[0]["user_count"] if user_count_result else 0
     
-    # Create request payload
-    payload = {
-        "prompt": prompt,
-        "parameters": merged_parameters
+    # Count total tokens (would need to retrieve from message metadata)
+    # This is a simplified approach, assuming token info is stored in message metadata
+    pipeline = [
+        {"$match": {"role": "assistant", "metadata.tokens": {"$exists": True}}},
+        {"$group": {"_id": None, "total_tokens": {"$sum": "$metadata.tokens.total"}}}
+    ]
+    token_result = await db.messages.aggregate(pipeline).to_list(length=1)
+    total_tokens = token_result[0]["total_tokens"] if token_result else 0
+    
+    # Return statistics
+    return {
+        "conversation_count": conversation_count,
+        "unique_users": user_count,
+        "total_tokens": total_tokens,
+        "llm_name": existing.name
     }
-    
-    if system_prompt:
-        payload["system_prompt"] = system_prompt
-    
-    # Track processing time
-    start_time = time.time()
-    
-    # Send request to LLM
-    try:
-        async with httpx.AsyncClient(timeout=60.0) as client:
-            response = await client.post(
-                llm.api_endpoint,
-                json=payload,
-                headers={"Content-Type": "application/json"}
-            )
-            response.raise_for_status()
-            
-            # Parse response
-            response_data = response.json()
-            
-            # Calculate processing time
-            processing_time = time.time() - start_time
-            
-            # Create result
-            result = {
-                "response": response_data.get("text", response_data.get("response", "")),
-                "processing_time": processing_time,
-                "tokens": response_data.get("usage", {})
-            }
-            
-            return result
-            
-    except httpx.HTTPStatusError as e:
-        raise ValueError(f"HTTP error occurred while contacting LLM: {e}")
-    except httpx.RequestError as e:
-        raise ValueError(f"Error occurred while sending request to LLM: {e}")
-    except (json.JSONDecodeError, KeyError) as e:
-        raise ValueError(f"Error parsing response from LLM: {e}")
-
-async def get_active_llms() -> List[LLM]:
-    """Get all active LLMs"""
-    db = await get_database()
-    cursor = db.llms.find({"status": "active"})
-    llms = []
-    
-    async for llm_data in cursor:
-        # Convert ObjectId to str
-        llm_data["id"] = str(llm_data.pop("_id"))
-        llms.append(LLM(**llm_data))
-    
-    return llms
-
-async def activate_llm(llm_id: str) -> Optional[LLM]:
-    """Activate an LLM"""
-    return await update_llm(llm_id, LLMUpdate(status="active"))
-
-async def deactivate_llm(llm_id: str) -> Optional[LLM]:
-    """Deactivate an LLM"""
-    return await update_llm(llm_id, LLMUpdate(status="inactive"))
