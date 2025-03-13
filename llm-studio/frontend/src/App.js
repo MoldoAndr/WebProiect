@@ -1,4 +1,4 @@
-// src/App.js with Admin Dashboard and ForgotPassword routes
+// src/App.js with AdminChat route
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import Login from './components/auth/Login';
@@ -7,6 +7,7 @@ import ForgotPassword from './components/auth/ForgotPassword';
 import Dashboard from './pages/Dashboard';
 import Settings from './pages/Settings';
 import AdminDashboard from './pages/AdminDashboard';
+import AdminChat from './pages/AdminChat';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { AuthProvider } from './hooks/useAuth';
@@ -14,6 +15,7 @@ import PrivateRoute from './components/auth/PrivateRoute';
 import RoleBasedRoute from './components/auth/RoleBasedRoute';
 import TermsOfService from './components/legal/TermsOfService';
 import PrivacyPolicy from './components/legal/PrivacyPolicy';
+
 function App() {
   return (
     <AuthProvider>
@@ -37,6 +39,14 @@ function App() {
           element={
             <PrivateRoute>
               <Settings />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/admin-chat"
+          element={
+            <PrivateRoute>
+              <AdminChat />
             </PrivateRoute>
           }
         />

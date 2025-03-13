@@ -1,4 +1,3 @@
-// src/components/dashboard/ChatInterface.jsx
 import React, { useState, useEffect, useRef } from "react";
 import { FiSend, FiCopy, FiThumbsUp, FiThumbsDown } from "react-icons/fi";
 import { toast } from "react-toastify";
@@ -6,7 +5,6 @@ import ReactMarkdown from "react-markdown";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { atomDark } from "react-syntax-highlighter/dist/esm/styles/prism";
 
-// Custom renderer for code blocks
 const CodeBlock = ({ language, value }) => {
   return (
     <div className="relative">

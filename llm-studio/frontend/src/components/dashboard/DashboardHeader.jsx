@@ -1,7 +1,7 @@
 // src/components/dashboard/DashboardHeader.jsx
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import { FiUser, FiLogOut, FiSettings, FiCpu } from "react-icons/fi";
+import { FiUser, FiLogOut, FiSettings, FiCpu, FiMessageCircle } from "react-icons/fi";
 import { useAuth } from "../../hooks/useAuth";
 import { Link } from 'react-router-dom';
 
@@ -32,6 +32,11 @@ const DashboardHeader = ({ user }) => {
 
         {/* Right side - User info and settings */}
         <div className="header-right">
+          <Link to="/admin-chat" className="admin-chat-button" title="Talk with an Administrator">
+            <FiMessageCircle size={20} />
+            <span>Admin Support</span>
+          </Link>
+
           <Link to="/settings">
             <button className="settings-button" title="Settings">
               <FiSettings size={20} />
