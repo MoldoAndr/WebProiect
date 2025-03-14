@@ -41,10 +41,10 @@ async def shutdown():
     await close_mongo_connection()
 
 # Include API routes
-app.include_router(auth.router, prefix=f"{settings.API_V1_STR}/auth", tags=["authentication"])
-app.include_router(users.router, prefix=f"{settings.API_V1_STR}/users", tags=["users"])
-app.include_router(llms.router, prefix=f"{settings.API_V1_STR}/llms", tags=["llms"])
-app.include_router(conversations.router, prefix=f"{settings.API_V1_STR}/conversations", tags=["conversations"])
+app.include_router(auth, prefix=f"{settings.API_V1_STR}/auth", tags=["authentication"])
+app.include_router(users, prefix=f"{settings.API_V1_STR}/users", tags=["users"])
+app.include_router(llms, prefix=f"{settings.API_V1_STR}/llms", tags=["llms"])
+app.include_router(conversations, prefix=f"{settings.API_V1_STR}/conversations", tags=["conversations"])
 
 # Health check endpoint
 @app.get("/health")

@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { toast } from 'react-toastify';
+import { FiUser, FiLock, FiAlertCircle, FiLoader } from 'react-icons/fi';
 import './Login.css';
 
 const Login = () => {
@@ -12,11 +13,20 @@ const Login = () => {
   });
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState({});
+  const [rememberMe, setRememberMe] = useState(false);
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, isAuthenticated } = useAuth();
   
   const particleContainerRef = useRef(null);
   
+  // If user is already authenticated, redirect to dashboard
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate('/dashboard');
+    }
+  }, [isAuthenticated, navigate]);
+  
+  // Initialize particle effect
   useEffect(() => {
     if (!particleContainerRef.current) return;
     
@@ -224,25 +234,33 @@ const Login = () => {
     try {
       const { username, password } = formData;
       await login({ username, password });
+      
+      // Store username in localStorage if remember me is checked
+      if (rememberMe) {
+        localStorage.setItem('remembered_username', username);
+      } else {
+        localStorage.removeItem('remembered_username');
+      }
+      
       toast.success('Login successful');
       navigate('/dashboard');
     } catch (error) {
       console.error('Login error:', error);
-      if (error.response?.data?.detail) {
-        toast.error(error.response.data.detail);
-      } else {
-        toast.error('Login failed. Please try again.');
-      }
-      if (error.response?.status === 401) {
-        setErrors({ 
-          ...errors, 
-          password: 'Invalid username or password' 
-        });
-      }
+      toast.error(error.message || 'Login failed. Please try again.');
+      setErrors({ ...errors, general: 'Invalid username or password' });
     } finally {
       setIsLoading(false);
     }
   };
+
+  // Try to load remembered username
+  useEffect(() => {
+    const rememberedUsername = localStorage.getItem('remembered_username');
+    if (rememberedUsername) {
+      setFormData(prev => ({ ...prev, username: rememberedUsername }));
+      setRememberMe(true);
+    }
+  }, []);
 
   return (
     <div className="login-container">
@@ -263,8 +281,18 @@ const Login = () => {
         </div>
         
         <form className="login-form" onSubmit={handleSubmit}>
+          {errors.general && (
+            <div className="error-banner">
+              <FiAlertCircle />
+              <span>{errors.general}</span>
+            </div>
+          )}
+          
           <div className="form-group">
-            <label htmlFor="username" className="form-label">Username</label>
+            <label htmlFor="username" className="form-label">
+              <FiUser className="input-icon" />
+              Username
+            </label>
             <input
               id="username"
               name="username"
@@ -275,12 +303,16 @@ const Login = () => {
               onChange={handleChange}
               className={`form-input ${errors.username ? 'input-error' : ''}`}
               placeholder="Enter your username"
+              disabled={isLoading}
             />
             {errors.username && <p className="error-message">{errors.username}</p>}
           </div>
           
           <div className="form-group">
-            <label htmlFor="password" className="form-label">Password</label>
+            <label htmlFor="password" className="form-label">
+              <FiLock className="input-icon" />
+              Password
+            </label>
             <input
               id="password"
               name="password"
@@ -291,13 +323,20 @@ const Login = () => {
               onChange={handleChange}
               className={`form-input ${errors.password ? 'input-error' : ''}`}
               placeholder="Enter your password"
+              disabled={isLoading}
             />
             {errors.password && <p className="error-message">{errors.password}</p>}
           </div>
           
           <div className="form-options">
             <div className="remember-me">
-              <input type="checkbox" id="remember-me" className="checkbox" />
+              <input 
+                type="checkbox" 
+                id="remember-me" 
+                className="checkbox"
+                checked={rememberMe}
+                onChange={() => setRememberMe(!rememberMe)}
+              />
               <label htmlFor="remember-me">Remember me</label>
             </div>
             <Link to="/forgot-password" className="forgot-password-link">Forgot password?</Link>
@@ -308,7 +347,14 @@ const Login = () => {
             disabled={isLoading}
             className={`login-button ${isLoading ? 'loading' : ''}`}
           >
-            {isLoading ? 'Signing in...' : 'Sign in'}
+            {isLoading ? (
+              <>
+                <FiLoader className="spinner" /> 
+                Signing in...
+              </>
+            ) : (
+              'Sign in'
+            )}
           </button>
         </form>
         

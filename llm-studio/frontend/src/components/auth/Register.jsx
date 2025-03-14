@@ -3,22 +3,34 @@ import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 import { toast } from "react-toastify";
+import { FiUser, FiMail, FiLock, FiAlertCircle, FiLoader, FiCheck } from "react-icons/fi";
 import "./Register.css";
 
 const Register = () => {
   const [formData, setFormData] = useState({
     username: "",
     email: "",
+    full_name: "",
     password: "",
     confirmPassword: "",
   });
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState({});
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [passwordStrength, setPasswordStrength] = useState(0);
   const navigate = useNavigate();
-  const { register } = useAuth();
+  const { register, isAuthenticated } = useAuth();
 
   const particleContainerRef = useRef(null);
 
+  // If user is already authenticated, redirect to dashboard
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate('/dashboard');
+    }
+  }, [isAuthenticated, navigate]);
+
+  // Initialize particle effect
   useEffect(() => {
     if (!particleContainerRef.current) return;
 
@@ -216,9 +228,55 @@ const Register = () => {
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
+
+    // Clear error for this field when user types
     if (errors[name]) {
       setErrors({ ...errors, [name]: null });
     }
+
+    // Calculate password strength if password field changes
+    if (name === 'password') {
+      calculatePasswordStrength(value);
+    }
+  };
+
+  const calculatePasswordStrength = (password) => {
+    // Initialize strength
+    let strength = 0;
+
+    // If password is 6+ chars, add points
+    if (password.length >= 6) strength += 1;
+    
+    // If password is 8+ chars, add more points
+    if (password.length >= 8) strength += 1;
+
+    // If password contains lowercase letters, add points
+    if (/[a-z]/.test(password)) strength += 1;
+    
+    // If password contains uppercase letters, add points
+    if (/[A-Z]/.test(password)) strength += 1;
+    
+    // If password contains numbers, add points
+    if (/[0-9]/.test(password)) strength += 1;
+    
+    // If password contains special chars, add points
+    if (/[^a-zA-Z0-9]/.test(password)) strength += 1;
+
+    // Calculate percentage (max 6 points)
+    const strengthPercentage = Math.min(5, strength);
+    setPasswordStrength(strengthPercentage);
+  };
+
+  const getStrengthClass = () => {
+    if (passwordStrength <= 1) return 'password-strength-weak';
+    if (passwordStrength <= 3) return 'password-strength-medium';
+    return 'password-strength-strong';
+  };
+
+  const getStrengthText = () => {
+    if (passwordStrength <= 1) return 'Weak';
+    if (passwordStrength <= 3) return 'Medium';
+    return 'Strong';
   };
 
   const validateForm = () => {
@@ -252,6 +310,11 @@ const Register = () => {
       newErrors.confirmPassword = "Passwords do not match";
     }
 
+    // Terms acceptance validation
+    if (!termsAccepted) {
+      newErrors.terms = "You must accept the Terms of Service and Privacy Policy";
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -264,27 +327,21 @@ const Register = () => {
 
     setIsLoading(true);
     try {
-      const { username, email, password } = formData;
-      await register({ username, email, password });
-      toast.success("Registration successful");
+      const { username, email, full_name, password } = formData;
+      await register({ username, email, full_name, password });
+      
+      toast.success("Registration successful! You can now login.");
       navigate("/login");
     } catch (error) {
       console.error("Registration error:", error);
+      
+      // Show the error message from the API if available
       if (error.response?.data?.detail) {
         toast.error(error.response.data.detail);
+        setErrors({ ...errors, general: error.response.data.detail });
       } else {
         toast.error("Registration failed. Please try again.");
-      }
-
-      // Handle specific errors from API
-      if (error.response?.data?.username) {
-        setErrors((prev) => ({
-          ...prev,
-          username: error.response.data.username,
-        }));
-      }
-      if (error.response?.data?.email) {
-        setErrors((prev) => ({ ...prev, email: error.response.data.email }));
+        setErrors({ ...errors, general: "Registration failed. Please try again." });
       }
     } finally {
       setIsLoading(false);
@@ -336,8 +393,16 @@ const Register = () => {
         </div>
 
         <form className="register-form" onSubmit={handleSubmit}>
+          {errors.general && (
+            <div className="error-banner">
+              <FiAlertCircle />
+              <span>{errors.general}</span>
+            </div>
+          )}
+
           <div className="form-group">
             <label htmlFor="username" className="form-label">
+              <FiUser className="input-icon" />
               Username
             </label>
             <input
@@ -350,6 +415,7 @@ const Register = () => {
               onChange={handleChange}
               className={`form-input ${errors.username ? "input-error" : ""}`}
               placeholder="Choose a username"
+              disabled={isLoading}
             />
             {errors.username && (
               <p className="error-message">{errors.username}</p>
@@ -358,6 +424,7 @@ const Register = () => {
 
           <div className="form-group">
             <label htmlFor="email" className="form-label">
+              <FiMail className="input-icon" />
               Email
             </label>
             <input
@@ -370,12 +437,32 @@ const Register = () => {
               onChange={handleChange}
               className={`form-input ${errors.email ? "input-error" : ""}`}
               placeholder="Enter your email"
+              disabled={isLoading}
             />
             {errors.email && <p className="error-message">{errors.email}</p>}
           </div>
 
           <div className="form-group">
+            <label htmlFor="full_name" className="form-label">
+              <FiUser className="input-icon" />
+              Full Name (Optional)
+            </label>
+            <input
+              id="full_name"
+              name="full_name"
+              type="text"
+              autoComplete="name"
+              value={formData.full_name}
+              onChange={handleChange}
+              className="form-input"
+              placeholder="Enter your full name"
+              disabled={isLoading}
+            />
+          </div>
+
+          <div className="form-group">
             <label htmlFor="password" className="form-label">
+              <FiLock className="input-icon" />
               Password
             </label>
             <input
@@ -388,7 +475,16 @@ const Register = () => {
               onChange={handleChange}
               className={`form-input ${errors.password ? "input-error" : ""}`}
               placeholder="Create a password"
+              disabled={isLoading}
             />
+            {formData.password && (
+              <div className="password-strength-container">
+                <div className="password-strength">
+                  <div className={`password-strength-bar ${getStrengthClass()}`}></div>
+                </div>
+                <span className="password-strength-text">{getStrengthText()}</span>
+              </div>
+            )}
             {errors.password && (
               <p className="error-message">{errors.password}</p>
             )}
@@ -396,6 +492,7 @@ const Register = () => {
 
           <div className="form-group">
             <label htmlFor="confirmPassword" className="form-label">
+              <FiLock className="input-icon" />
               Confirm Password
             </label>
             <input
@@ -410,14 +507,24 @@ const Register = () => {
                 errors.confirmPassword ? "input-error" : ""
               }`}
               placeholder="Confirm your password"
+              disabled={isLoading}
             />
             {errors.confirmPassword && (
               <p className="error-message">{errors.confirmPassword}</p>
             )}
           </div>
+
           <div className="form-terms">
             <div className="terms-check">
-              <input type="checkbox" id="terms" className="checkbox" required />
+              <input 
+                type="checkbox" 
+                id="terms" 
+                className="checkbox"
+                required
+                checked={termsAccepted}
+                onChange={() => setTermsAccepted(!termsAccepted)}
+                disabled={isLoading}
+              />
               <label htmlFor="terms">
                 I agree to the{" "}
                 <Link to="/terms" className="terms-link">
@@ -429,6 +536,9 @@ const Register = () => {
                 </Link>
               </label>
             </div>
+            {errors.terms && (
+              <p className="error-message">{errors.terms}</p>
+            )}
           </div>
 
           <button
@@ -436,7 +546,14 @@ const Register = () => {
             disabled={isLoading}
             className={`register-button ${isLoading ? "loading" : ""}`}
           >
-            {isLoading ? "Creating account..." : "Create Account"}
+            {isLoading ? (
+              <>
+                <FiLoader className="spinner" />
+                Creating account...
+              </>
+            ) : (
+              'Create Account'
+            )}
           </button>
         </form>
 
