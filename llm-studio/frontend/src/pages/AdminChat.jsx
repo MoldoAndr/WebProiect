@@ -1,7 +1,7 @@
 // src/pages/AdminChat.jsx
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { FiSend, FiArrowLeft, FiInfo, FiAlertCircle } from "react-icons/fi";
+import { FiSend, FiArrowLeft, FiInfo, FiAlertCircle, FitMessageCircle } from "react-icons/fi";
 import { useAuth } from "../hooks/useAuth";
 import { adminChatService } from "../services/admin-chat.service";
 import { toast } from "react-toastify";
@@ -364,7 +364,6 @@ const AdminChat = () => {
             </>
           ) : (
             <div className="empty-state">
-              <FiMessageCircle size={64} />
               <h2>Talk with an Administrator</h2>
               <p>
                 Select an existing ticket from the sidebar to continue a conversation,

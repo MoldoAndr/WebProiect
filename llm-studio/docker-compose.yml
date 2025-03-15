@@ -78,6 +78,28 @@ services:
     networks:
       - llm-studio-network
 
+  llm-management:
+    build:
+      context: ./llm-management
+      dockerfile: Dockerfile
+    container_name: llm-studio-llm-management
+    restart: unless-stopped
+    depends_on:
+      - mongodb
+    environment:
+      - MONGO_USER=${MONGO_USER:-llmstudio}
+      - MONGO_PASSWORD=${MONGO_PASSWORD:-password}
+      - MONGO_HOST=mongodb
+      - MONGO_DB=llm_studio
+      - LOG_LEVEL=info
+    volumes:
+      - ./llm-management:/app
+      - /var/run/docker.sock:/var/run/docker.sock  # For Docker API access
+    ports:
+      - "8001:8000"  # Map to a different host port to avoid conflict with backend
+    networks:
+      - llm-studio-network
+
 # Define networks
 networks:
   llm-studio-network:
