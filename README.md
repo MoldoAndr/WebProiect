@@ -1,6 +1,6 @@
 # 🤖 LLM Studio Manager
 
-O platformă web completă pentru gestionarea și interacțiunea cu diferite Modele de Învățare a Limbajului (LLM).
+O platformă web completă pentru gestionarea și interacțiunea cu diferite LLM-uri.
 
 ![Licență](https://img.shields.io/badge/licență-MIT-blue)
 ![Versiune](https://img.shields.io/badge/versiune-1.0.0-green)
