@@ -290,7 +290,6 @@ const Login = () => {
           
           <div className="form-group">
             <label htmlFor="username" className="form-label">
-              <FiUser className="input-icon" />
               Username
             </label>
             <input
@@ -310,7 +309,6 @@ const Login = () => {
           
           <div className="form-group">
             <label htmlFor="password" className="form-label">
-              <FiLock className="input-icon" />
               Password
             </label>
             <input

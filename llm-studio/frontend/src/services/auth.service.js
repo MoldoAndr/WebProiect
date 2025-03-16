@@ -1,7 +1,10 @@
-// Authorization service for handling login, logout, and user management
+// Update your auth.service.js file
+
+import axios from 'axios';
+import { API_URL } from '../config';
 
 // You can replace this with your actual API calls
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
 
 // Mock user data for development
 const mockUser = {
@@ -16,20 +19,43 @@ class AuthService {
   async login(credentials) {
     try {
       // For a real implementation, you would call your API:
-      // const response = await fetch(`${API_URL}/auth/login`, {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify(credentials),
-      // });
-      // const data = await response.json();
+      const response = await fetch(`${API_BASE_URL}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          username: credentials.username,
+          password: credentials.password
+        })
+      });
       
-      // Mock implementation for development
-      const data = { user: mockUser, token: 'mock-jwt-token' };
+      if (!response.ok) {
+        throw new Error('Login failed');
+      }
       
-      // Save token to localStorage
-      localStorage.setItem('token', data.token);
+      const data = await response.json();
       
-      return data.user;
+      // Save token to localStorage - ensure this is working
+      window.localStorage.setItem('token', data.access_token);
+      console.log('Token saved to localStorage:', data.access_token);
+      
+      // Set default authorization header for axios
+      axios.defaults.headers.common['Authorization'] = `Bearer ${data.access_token}`;
+      
+      // Get user data if needed
+      const userResponse = await fetch(`${API_BASE_URL}/users/me`, {
+        headers: { 
+          'Authorization': `Bearer ${data.access_token}`
+        }
+      });
+      
+      if (!userResponse.ok) {
+        throw new Error('Failed to get user data');
+      }
+      
+      const userData = await userResponse.json();
+      
+      // For development fallback
+      return userData || mockUser;
     } catch (error) {
       console.error('Login failed:', error);
       throw new Error('Login failed. Please check your credentials.');
@@ -38,23 +64,32 @@ class AuthService {
 
   async logout() {
     // Remove token from localStorage
-    localStorage.removeItem('token');
+    window.localStorage.removeItem('token');
+    
+    // Remove authorization header
+    delete axios.defaults.headers.common['Authorization'];
+    
     return true;
   }
 
   async getCurrentUser() {
-    const token = localStorage.getItem('token');
+    const token = window.localStorage.getItem('token');
     if (!token) return null;
     
     try {
-      // For a real implementation:
-      // const response = await fetch(`${API_URL}/auth/me`, {
-      //   headers: { Authorization: `Bearer ${token}` },
-      // });
-      // const data = await response.json();
+      const response = await fetch(`${API_BASE_URL}/users/me`, {
+        headers: { 
+          'Authorization': `Bearer ${token}`
+        }
+      });
       
-      // Mock implementation
-      return mockUser;
+      if (!response.ok) {
+        // Token might be expired
+        window.localStorage.removeItem('token');
+        return null;
+      }
+      
+      return await response.json();
     } catch (error) {
       console.error('Failed to get current user:', error);
       return null;
@@ -62,7 +97,11 @@ class AuthService {
   }
 
   getToken() {
-    return localStorage.getItem('token');
+    return window.localStorage.getItem('token');
+  }
+  
+  isAuthenticated() {
+    return !!this.getToken();
   }
 }
 

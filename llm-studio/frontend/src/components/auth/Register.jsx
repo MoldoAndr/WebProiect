@@ -402,7 +402,6 @@ const Register = () => {
 
           <div className="form-group">
             <label htmlFor="username" className="form-label">
-              <FiUser className="input-icon" />
               Username
             </label>
             <input
@@ -424,7 +423,6 @@ const Register = () => {
 
           <div className="form-group">
             <label htmlFor="email" className="form-label">
-              <FiMail className="input-icon" />
               Email
             </label>
             <input
@@ -444,7 +442,6 @@ const Register = () => {
 
           <div className="form-group">
             <label htmlFor="full_name" className="form-label">
-              <FiUser className="input-icon" />
               Full Name (Optional)
             </label>
             <input
@@ -462,7 +459,6 @@ const Register = () => {
 
           <div className="form-group">
             <label htmlFor="password" className="form-label">
-              <FiLock className="input-icon" />
               Password
             </label>
             <input
@@ -492,7 +488,6 @@ const Register = () => {
 
           <div className="form-group">
             <label htmlFor="confirmPassword" className="form-label">
-              <FiLock className="input-icon" />
               Confirm Password
             </label>
             <input

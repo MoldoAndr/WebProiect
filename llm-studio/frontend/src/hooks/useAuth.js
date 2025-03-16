@@ -1,3 +1,5 @@
+// Update your useAuth.js hook
+
 import { useState, useEffect, createContext, useContext } from 'react';
 import axios from 'axios';
 import { API_URL } from '../config';
@@ -26,6 +28,7 @@ export const AuthProvider = ({ children }) => {
           const response = await axios.get(`${API_URL}/users/me`);
           setUser(response.data);
           setIsAuthenticated(true);
+          console.log('User authenticated from token');
         } catch (error) {
           console.error("Failed to load user:", error);
           // Token might be expired, clear it
@@ -58,8 +61,9 @@ export const AuthProvider = ({ children }) => {
       
       const { access_token } = response.data;
       
-      // Store token in localStorage
-      localStorage.setItem('token', access_token);
+      // Store token in localStorage - explicitly use window.localStorage
+      window.localStorage.setItem('token', access_token);
+      console.log('Token saved to localStorage:', access_token);
       
       // Set default authorization header
       axios.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
@@ -103,7 +107,8 @@ export const AuthProvider = ({ children }) => {
   
   // Logout function
   const logout = () => {
-    localStorage.removeItem('token');
+    // Explicitly use window.localStorage for clarity
+    window.localStorage.removeItem('token');
     delete axios.defaults.headers.common['Authorization'];
     setUser(null);
     setIsAuthenticated(false);

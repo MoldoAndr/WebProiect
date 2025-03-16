@@ -1,19 +1,45 @@
-/* src/pages/AdminChat.css */
+/* src/pages/AdminChat.css - Complete rewrite */
+
+:root {
+  --background-dark: #0e1116;
+  --background-lighter: #1c212f;
+  --background-darker: #171923;
+  --accent-blue: #3b4677;
+  --accent-blue-hover: #4a57a0;
+  --accent-green: #2d8a70;
+  --accent-red: #e53e3e;
+  --accent-yellow: #d69e2e;
+  --text-light: #e2e8f0;
+  --text-muted: #a0aec0;
+  --border-color: #2d3748;
+  --card-bg: #1a1e2c;
+  --card-hover: #202534;
+  --blue-light: #5c70e2;
+  --header-height: 64px;
+  --sidebar-width: 280px;
+  --box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  --border-radius: 0.5rem;
+}
+
+/* Main container */
 .admin-chat-container {
   display: flex;
-  flex: 1;
   height: calc(100vh - var(--header-height));
   overflow: hidden;
+  position: relative;
 }
 
 /* Sidebar styles */
 .admin-chat-sidebar {
-  width: 280px;
+  width: var(--sidebar-width);
   background-color: var(--background-darker);
   border-right: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
+  height: 100%;
+  max-height: calc(100vh - var(--header-height));
+  position: relative;
 }
 
 .admin-chat-sidebar-header {
@@ -22,6 +48,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-shrink: 0;
 }
 
 .admin-chat-sidebar-header h2 {
@@ -44,6 +71,7 @@
 
 .new-ticket-button:hover {
   background-color: var(--accent-blue-hover);
+  transform: translateY(-1px);
 }
 
 .new-ticket-button.large {
@@ -52,10 +80,13 @@
   margin-top: 1rem;
 }
 
+/* Ticket list container */
 .tickets-list {
-  max-height: 80%;
-  overflow-y: auto;
   flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  max-height: calc(100% - 60px);
+  padding-bottom: 10px;
 }
 
 .tickets-list::-webkit-scrollbar {
@@ -121,6 +152,11 @@
   color: #48bb78;
 }
 
+.ticket-status.in_progress {
+  background-color: rgba(214, 158, 46, 0.2);
+  color: #d69e2e;
+}
+
 .ticket-status.closed {
   background-color: rgba(160, 174, 192, 0.2);
   color: #a0aec0;
@@ -130,9 +166,9 @@
   font-size: 0.7rem;
 }
 
+/* New ticket form */
 .new-ticket-form {
   padding: 1rem;
-  width: 100%;
   border-bottom: 1px solid var(--border-color);
   background-color: rgba(45, 55, 72, 0.3);
 }
@@ -201,6 +237,7 @@
   flex-direction: column;
   background-color: var(--background-dark);
   position: relative;
+  overflow: hidden;
 }
 
 .admin-chat-header {
@@ -209,6 +246,7 @@
   padding: 1rem;
   border-bottom: 1px solid var(--border-color);
   background-color: rgba(26, 32, 44, 0.5);
+  flex-shrink: 0;
 }
 
 .back-button {
@@ -249,6 +287,7 @@
   color: var(--text-muted);
 }
 
+/* Messages area */
 .admin-chat-messages {
   flex: 1;
   padding: 1rem;
@@ -278,6 +317,13 @@
   animation: message-appear 0.3s ease-out forwards;
   opacity: 0;
   transform: translateY(20px);
+}
+
+@keyframes message-appear {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .user-message {
@@ -337,12 +383,14 @@
   opacity: 0.5;
 }
 
+/* Chat input area */
 .admin-chat-input {
   padding: 1rem;
   border-top: 1px solid var(--border-color);
   background-color: rgba(26, 32, 44, 0.5);
   display: flex;
   align-items: center;
+  flex-shrink: 0;
 }
 
 .admin-chat-input textarea {
@@ -376,6 +424,7 @@
   margin-left: 0.75rem;
   cursor: pointer;
   transition: all 0.2s ease;
+  flex-shrink: 0;
 }
 
 .send-button:hover {
@@ -433,35 +482,67 @@
   line-height: 1.6;
 }
 
+/* Admin support button styling */
+.admin-chat-button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: linear-gradient(90deg, rgba(79, 94, 153, 0.2) 0%, rgba(59, 70, 119, 0.3) 100%);
+  color: var(--text-light);
+  border: 1px solid rgba(92, 112, 226, 0.3);
+  border-radius: 1.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  text-decoration: none;
+  margin-right: 0.75rem;
+}
+
+.admin-chat-button:hover {
+  background: linear-gradient(90deg, rgba(79, 94, 153, 0.3) 0%, rgba(59, 70, 119, 0.5) 100%);
+  border-color: rgba(92, 112, 226, 0.5);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+.admin-chat-button svg {
+  color: #5c70e2;
+}
+
+/* Responsive design */
 @media (max-width: 768px) {
   .admin-chat-container {
     flex-direction: column;
   }
 
   .admin-chat-sidebar {
-    width: 260px;
-    background-color: #171923;
-    display: flex;
-    flex-direction: column;
-    transition: transform 0.3s ease;
+    width: 280px;
+    height: 70vh;
+    max-height: 70vh;
     position: absolute;
-    height: calc(80vh - 1px);
     top: 10px;
     left: 10px;
-    margin: 0;
+    z-index: 20;
     border-radius: 12px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-    border: 1px solid #2d3748;
-    overflow: hidden;
-    z-index: 20;
-
+    border: 1px solid var(--border-color);
   }
-
-  .admin-chat-main {
-    height: 60%;
+  
+  .tickets-list {
+    max-height: calc(70vh - 150px);
   }
-
+  
   .message {
     max-width: 90%;
+  }
+  
+  .admin-chat-button span {
+    display: none;
+  }
+  
+  .admin-chat-button {
+    padding: 0.5rem;
+    border-radius: 50%;
   }
 }

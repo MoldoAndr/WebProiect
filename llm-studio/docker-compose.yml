@@ -60,6 +60,8 @@ services:
       - backend
     networks:
       - llm-studio-network
+    volumes:
+      - ./frontend:/app
 
   # Nginx service
   nginx:

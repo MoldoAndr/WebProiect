@@ -213,7 +213,7 @@ const AdminChat = () => {
       <DashboardHeader user={user} />
       <div className="admin-chat-container">
         {/* Sidebar with tickets */}
-        <div className="admin-chat-sidebar">
+        <div className="admin-chat-sidebar" style={{ height: "200px" }}>
           <div className="admin-chat-sidebar-header">
             <h2>Support Tickets</h2>
             <button
