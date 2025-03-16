@@ -1,456 +1,467 @@
 /* src/pages/AdminChat.css */
 .admin-chat-container {
-    display: flex;
-    flex: 1;
-    height: calc(100vh - var(--header-height));
-    overflow: hidden;
+  display: flex;
+  flex: 1;
+  height: calc(100vh - var(--header-height));
+  overflow: hidden;
+}
+
+/* Sidebar styles */
+.admin-chat-sidebar {
+  width: 280px;
+  background-color: var(--background-darker);
+  border-right: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+
+.admin-chat-sidebar-header {
+  padding: 1rem;
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.admin-chat-sidebar-header h2 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text-light);
+}
+
+.new-ticket-button {
+  background-color: var(--accent-blue);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 0.4rem 0.8rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.new-ticket-button:hover {
+  background-color: var(--accent-blue-hover);
+}
+
+.new-ticket-button.large {
+  padding: 0.75rem 1.25rem;
+  font-size: 0.9rem;
+  margin-top: 1rem;
+}
+
+.tickets-list {
+  max-height: 80%;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.tickets-list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.tickets-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.tickets-list::-webkit-scrollbar-thumb {
+  background-color: var(--border-color);
+  border-radius: 2px;
+}
+
+.ticket-item {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.ticket-item:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.ticket-item.active {
+  background-color: rgba(59, 70, 119, 0.3);
+  border-left: 3px solid var(--blue-light);
+}
+
+.ticket-item-content {
+  display: flex;
+  flex-direction: column;
+}
+
+.ticket-title {
+  font-weight: 500;
+  color: var(--text-light);
+  margin-bottom: 0.25rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ticket-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.ticket-status {
+  padding: 0.15rem 0.4rem;
+  border-radius: 3px;
+  font-size: 0.7rem;
+  font-weight: 500;
+}
+
+.ticket-status.open {
+  background-color: rgba(72, 187, 120, 0.2);
+  color: #48bb78;
+}
+
+.ticket-status.closed {
+  background-color: rgba(160, 174, 192, 0.2);
+  color: #a0aec0;
+}
+
+.ticket-date {
+  font-size: 0.7rem;
+}
+
+.new-ticket-form {
+  padding: 1rem;
+  width: 100%;
+  border-bottom: 1px solid var(--border-color);
+  background-color: rgba(45, 55, 72, 0.3);
+}
+
+.new-ticket-input {
+  width: 100%;
+  padding: 0.6rem;
+  border-radius: 4px;
+  border: 1px solid var(--border-color);
+  background-color: var(--background-darker);
+  color: var(--text-light);
+  margin-bottom: 0.75rem;
+}
+
+.new-ticket-input:focus {
+  border-color: var(--blue-light);
+  outline: none;
+}
+
+.new-ticket-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.cancel-button {
+  background-color: transparent;
+  color: var(--text-muted);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 0.4rem 0.8rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.cancel-button:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+  color: var(--text-light);
+}
+
+.create-button {
+  background-color: var(--accent-blue);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 0.4rem 0.8rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.create-button:hover {
+  background-color: var(--accent-blue-hover);
+}
+
+.create-button:disabled {
+  background-color: var(--border-color);
+  cursor: not-allowed;
+}
+
+/* Main chat area */
+.admin-chat-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--background-dark);
+  position: relative;
+}
+
+.admin-chat-header {
+  display: flex;
+  align-items: center;
+  padding: 1rem;
+  border-bottom: 1px solid var(--border-color);
+  background-color: rgba(26, 32, 44, 0.5);
+}
+
+.back-button {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  margin-right: 1rem;
+  padding: 0.5rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.back-button:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+  color: var(--text-light);
+}
+
+.admin-chat-info {
+  flex: 1;
+}
+
+.admin-chat-info h2 {
+  margin: 0 0 0.25rem 0;
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--text-light);
+}
+
+.admin-chat-meta {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.admin-chat-messages {
+  flex: 1;
+  padding: 1rem;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.admin-chat-messages::-webkit-scrollbar {
+  width: 6px;
+}
+
+.admin-chat-messages::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.admin-chat-messages::-webkit-scrollbar-thumb {
+  background-color: var(--border-color);
+  border-radius: 3px;
+}
+
+.message {
+  margin-bottom: 1rem;
+  max-width: 80%;
+  display: flex;
+  flex-direction: column;
+  animation: message-appear 0.3s ease-out forwards;
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+.user-message {
+  align-self: flex-end;
+}
+
+.admin-message {
+  align-self: flex-start;
+}
+
+.message-content {
+  padding: 0.8rem 1rem;
+  border-radius: 1rem;
+  line-height: 1.5;
+  font-size: 0.95rem;
+  color: var(--text-light);
+  word-break: break-word;
+}
+
+.user-message .message-content {
+  background-color: var(--accent-blue);
+  border-radius: 1rem 1rem 0 1rem;
+}
+
+.admin-message .message-content {
+  background-color: var(--card-bg);
+  border-radius: 1rem 1rem 1rem 0;
+}
+
+.message-meta {
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  display: flex;
+  justify-content: space-between;
+}
+
+.admin-name {
+  font-weight: 500;
+  color: var(--blue-light);
+}
+
+.no-messages {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 2rem;
+}
+
+.no-messages svg {
+  margin-bottom: 1rem;
+  color: var(--blue-light);
+  opacity: 0.5;
+}
+
+.admin-chat-input {
+  padding: 1rem;
+  border-top: 1px solid var(--border-color);
+  background-color: rgba(26, 32, 44, 0.5);
+  display: flex;
+  align-items: center;
+}
+
+.admin-chat-input textarea {
+  flex: 1;
+  padding: 0.8rem 1rem;
+  border-radius: 1rem;
+  border: 1px solid var(--border-color);
+  background-color: var(--background-darker);
+  color: var(--text-light);
+  resize: none;
+  min-height: 20px;
+  max-height: 120px;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.admin-chat-input textarea:focus {
+  border-color: var(--blue-light);
+}
+
+.send-button {
+  background-color: var(--accent-blue);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.send-button:hover {
+  background-color: var(--accent-blue-hover);
+  transform: scale(1.05);
+}
+
+.send-button:disabled {
+  background-color: var(--border-color);
+  cursor: not-allowed;
+  transform: none;
+}
+
+.ticket-closed-message {
+  width: 100%;
+  padding: 0.8rem 1rem;
+  background-color: rgba(229, 62, 62, 0.1);
+  border: 1px solid rgba(229, 62, 62, 0.3);
+  border-radius: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: #fc8181;
+}
+
+/* Empty state */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 2rem;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.empty-state svg {
+  margin-bottom: 1.5rem;
+  color: var(--blue-light);
+  opacity: 0.7;
+}
+
+.empty-state h2 {
+  margin: 0 0 1rem 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--text-light);
+}
+
+.empty-state p {
+  max-width: 500px;
+  margin: 0 0 1.5rem 0;
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+@media (max-width: 768px) {
+  .admin-chat-container {
+    flex-direction: column;
   }
-  
-  /* Sidebar styles */
+
   .admin-chat-sidebar {
-    width: 280px;
-    background-color: var(--background-darker);
-    border-right: 1px solid var(--border-color);
+    width: 260px;
+    background-color: #171923;
     display: flex;
     flex-direction: column;
-    flex-shrink: 0;
-  }
-  
-  .admin-chat-sidebar-header {
-    padding: 1rem;
-    border-bottom: 1px solid var(--border-color);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-  
-  .admin-chat-sidebar-header h2 {
+    transition: transform 0.3s ease;
+    position: absolute;
+    height: calc(80vh - 1px);
+    top: 10px;
+    left: 10px;
     margin: 0;
-    font-size: 1.1rem;
-    font-weight: 600;
-    color: var(--text-light);
-  }
-  
-  .new-ticket-button {
-    background-color: var(--accent-blue);
-    color: white;
-    border: none;
-    border-radius: 4px;
-    padding: 0.4rem 0.8rem;
-    font-size: 0.8rem;
-    cursor: pointer;
-    transition: all 0.2s ease;
-  }
-  
-  .new-ticket-button:hover {
-    background-color: var(--accent-blue-hover);
-  }
-  
-  .new-ticket-button.large {
-    padding: 0.75rem 1.25rem;
-    font-size: 0.9rem;
-    margin-top: 1rem;
-  }
-  
-  .tickets-list {
-    overflow-y: auto;
-    flex: 1;
-  }
-  
-  .tickets-list::-webkit-scrollbar {
-    width: 4px;
-  }
-  
-  .tickets-list::-webkit-scrollbar-track {
-    background: transparent;
-  }
-  
-  .tickets-list::-webkit-scrollbar-thumb {
-    background-color: var(--border-color);
-    border-radius: 2px;
-  }
-  
-  .ticket-item {
-    padding: 0.75rem 1rem;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-    cursor: pointer;
-    transition: background-color 0.2s ease;
-  }
-  
-  .ticket-item:hover {
-    background-color: rgba(255, 255, 255, 0.05);
-  }
-  
-  .ticket-item.active {
-    background-color: rgba(59, 70, 119, 0.3);
-    border-left: 3px solid var(--blue-light);
-  }
-  
-  .ticket-item-content {
-    display: flex;
-    flex-direction: column;
-  }
-  
-  .ticket-title {
-    font-weight: 500;
-    color: var(--text-light);
-    margin-bottom: 0.25rem;
-    white-space: nowrap;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    border: 1px solid #2d3748;
     overflow: hidden;
-    text-overflow: ellipsis;
+    z-index: 20;
+
   }
-  
-  .ticket-meta {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-size: 0.75rem;
-    color: var(--text-muted);
-  }
-  
-  .ticket-status {
-    padding: 0.15rem 0.4rem;
-    border-radius: 3px;
-    font-size: 0.7rem;
-    font-weight: 500;
-  }
-  
-  .ticket-status.open {
-    background-color: rgba(72, 187, 120, 0.2);
-    color: #48bb78;
-  }
-  
-  .ticket-status.closed {
-    background-color: rgba(160, 174, 192, 0.2);
-    color: #a0aec0;
-  }
-  
-  .ticket-date {
-    font-size: 0.7rem;
-  }
-  
-  /* New ticket form */
-  .new-ticket-form {
-    padding: 1rem;
-    border-bottom: 1px solid var(--border-color);
-    background-color: rgba(45, 55, 72, 0.3);
-  }
-  
-  .new-ticket-input {
-    width: 100%;
-    padding: 0.6rem;
-    border-radius: 4px;
-    border: 1px solid var(--border-color);
-    background-color: var(--background-darker);
-    color: var(--text-light);
-    margin-bottom: 0.75rem;
-  }
-  
-  .new-ticket-input:focus {
-    border-color: var(--blue-light);
-    outline: none;
-  }
-  
-  .new-ticket-actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 0.5rem;
-  }
-  
-  .cancel-button {
-    background-color: transparent;
-    color: var(--text-muted);
-    border: 1px solid var(--border-color);
-    border-radius: 4px;
-    padding: 0.4rem 0.8rem;
-    font-size: 0.8rem;
-    cursor: pointer;
-    transition: all 0.2s ease;
-  }
-  
-  .cancel-button:hover {
-    background-color: rgba(255, 255, 255, 0.05);
-    color: var(--text-light);
-  }
-  
-  .create-button {
-    background-color: var(--accent-blue);
-    color: white;
-    border: none;
-    border-radius: 4px;
-    padding: 0.4rem 0.8rem;
-    font-size: 0.8rem;
-    cursor: pointer;
-    transition: all 0.2s ease;
-  }
-  
-  .create-button:hover {
-    background-color: var(--accent-blue-hover);
-  }
-  
-  .create-button:disabled {
-    background-color: var(--border-color);
-    cursor: not-allowed;
-  }
-  
-  /* Main chat area */
+
   .admin-chat-main {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    background-color: var(--background-dark);
-    position: relative;
+    height: 60%;
   }
-  
-  .admin-chat-header {
-    display: flex;
-    align-items: center;
-    padding: 1rem;
-    border-bottom: 1px solid var(--border-color);
-    background-color: rgba(26, 32, 44, 0.5);
-  }
-  
-  .back-button {
-    background: transparent;
-    border: none;
-    color: var(--text-muted);
-    margin-right: 1rem;
-    padding: 0.5rem;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: all 0.2s ease;
-  }
-  
-  .back-button:hover {
-    background-color: rgba(255, 255, 255, 0.05);
-    color: var(--text-light);
-  }
-  
-  .admin-chat-info {
-    flex: 1;
-  }
-  
-  .admin-chat-info h2 {
-    margin: 0 0 0.25rem 0;
-    font-size: 1.2rem;
-    font-weight: 600;
-    color: var(--text-light);
-  }
-  
-  .admin-chat-meta {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    font-size: 0.8rem;
-    color: var(--text-muted);
-  }
-  
-  .admin-chat-messages {
-    flex: 1;
-    padding: 1rem;
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-  }
-  
-  .admin-chat-messages::-webkit-scrollbar {
-    width: 6px;
-  }
-  
-  .admin-chat-messages::-webkit-scrollbar-track {
-    background: transparent;
-  }
-  
-  .admin-chat-messages::-webkit-scrollbar-thumb {
-    background-color: var(--border-color);
-    border-radius: 3px;
-  }
-  
+
   .message {
-    margin-bottom: 1rem;
-    max-width: 80%;
-    display: flex;
-    flex-direction: column;
-    animation: message-appear 0.3s ease-out forwards;
-    opacity: 0;
-    transform: translateY(20px);
+    max-width: 90%;
   }
-  
-  .user-message {
-    align-self: flex-end;
-  }
-  
-  .admin-message {
-    align-self: flex-start;
-  }
-  
-  .message-content {
-    padding: 0.8rem 1rem;
-    border-radius: 1rem;
-    line-height: 1.5;
-    font-size: 0.95rem;
-    color: var(--text-light);
-    word-break: break-word;
-  }
-  
-  .user-message .message-content {
-    background-color: var(--accent-blue);
-    border-radius: 1rem 1rem 0 1rem;
-  }
-  
-  .admin-message .message-content {
-    background-color: var(--card-bg);
-    border-radius: 1rem 1rem 1rem 0;
-  }
-  
-  .message-meta {
-    margin-top: 0.25rem;
-    font-size: 0.75rem;
-    color: var(--text-muted);
-    display: flex;
-    justify-content: space-between;
-  }
-  
-  .admin-name {
-    font-weight: 500;
-    color: var(--blue-light);
-  }
-  
-  .no-messages {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    height: 100%;
-    color: var(--text-muted);
-    text-align: center;
-    padding: 2rem;
-  }
-  
-  .no-messages svg {
-    margin-bottom: 1rem;
-    color: var(--blue-light);
-    opacity: 0.5;
-  }
-  
-  .admin-chat-input {
-    padding: 1rem;
-    border-top: 1px solid var(--border-color);
-    background-color: rgba(26, 32, 44, 0.5);
-    display: flex;
-    align-items: center;
-  }
-  
-  .admin-chat-input textarea {
-    flex: 1;
-    padding: 0.8rem 1rem;
-    border-radius: 1rem;
-    border: 1px solid var(--border-color);
-    background-color: var(--background-darker);
-    color: var(--text-light);
-    resize: none;
-    min-height: 20px;
-    max-height: 120px;
-    outline: none;
-    transition: all 0.2s ease;
-  }
-  
-  .admin-chat-input textarea:focus {
-    border-color: var(--blue-light);
-  }
-  
-  .send-button {
-    background-color: var(--accent-blue);
-    color: white;
-    border: none;
-    border-radius: 50%;
-    width: 40px;
-    height: 40px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-left: 0.75rem;
-    cursor: pointer;
-    transition: all 0.2s ease;
-  }
-  
-  .send-button:hover {
-    background-color: var(--accent-blue-hover);
-    transform: scale(1.05);
-  }
-  
-  .send-button:disabled {
-    background-color: var(--border-color);
-    cursor: not-allowed;
-    transform: none;
-  }
-  
-  .ticket-closed-message {
-    width: 100%;
-    padding: 0.8rem 1rem;
-    background-color: rgba(229, 62, 62, 0.1);
-    border: 1px solid rgba(229, 62, 62, 0.3);
-    border-radius: 0.5rem;
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    color: #fc8181;
-  }
-  
-  /* Empty state */
-  .empty-state {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    height: 100%;
-    padding: 2rem;
-    text-align: center;
-    color: var(--text-muted);
-  }
-  
-  .empty-state svg {
-    margin-bottom: 1.5rem;
-    color: var(--blue-light);
-    opacity: 0.7;
-  }
-  
-  .empty-state h2 {
-    margin: 0 0 1rem 0;
-    font-size: 1.5rem;
-    font-weight: 600;
-    color: var(--text-light);
-  }
-  
-  .empty-state p {
-    max-width: 500px;
-    margin: 0 0 1.5rem 0;
-    font-size: 0.95rem;
-    line-height: 1.6;
-  }
-  
-  /* Responsive styles */
-  @media (max-width: 768px) {
-    .admin-chat-container {
-      flex-direction: column;
-    }
-    
-    .admin-chat-sidebar {
-      width: 100%;
-      height: auto;
-      max-height: 40%;
-      border-right: none;
-      border-bottom: 1px solid var(--border-color);
-    }
-    
-    .admin-chat-main {
-      height: 60%;
-    }
-    
-    .message {
-      max-width: 90%;
-    }
-  }
+}
