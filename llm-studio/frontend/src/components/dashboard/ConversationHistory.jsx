@@ -1,9 +1,7 @@
-// src/components/dashboard/ConversationHistory.jsx
 import React from 'react';
 import { FiMessageSquare, FiClock } from 'react-icons/fi';
 
 const ConversationHistory = ({ conversations, selectedConversationId, onConversationSelect }) => {
-  // Format the date to be more readable
   const formatDate = (dateString) => {
     const date = new Date(dateString);
     const now = new Date();

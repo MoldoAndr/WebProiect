@@ -1,4 +1,3 @@
-// Mock LLM service for development
 const mockLLMs = [
   {
     id: 1,

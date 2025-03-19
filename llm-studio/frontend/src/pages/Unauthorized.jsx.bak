@@ -1,3 +1,4 @@
+// src/pages/Unauthorized.jsx
 import React, { useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { FiLock, FiArrowLeft } from 'react-icons/fi';
@@ -9,6 +10,7 @@ const Unauthorized = () => {
   const navigate = useNavigate();
   const particleContainerRef = useRef(null);
   
+  // Initialize particle animation (similar to login/register)
   useEffect(() => {
     if (!particleContainerRef.current) return;
     
@@ -16,8 +18,11 @@ const Unauthorized = () => {
     canvas.className = 'particle-network-canvas';
     particleContainerRef.current.appendChild(canvas);
     
+    // Canvas setup and animation code goes here
+    // (abbreviated for brevity - similar to Login.jsx animation)
     
     return () => {
+      // Cleanup code
     };
   }, []);
   

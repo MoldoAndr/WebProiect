@@ -1,4 +1,3 @@
-// src/components/dashboard/LLMSelector.jsx
 import React from 'react';
 import { FiCpu, FiDollarSign, FiMaximize } from 'react-icons/fi';
 

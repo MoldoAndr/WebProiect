@@ -1,4 +1,3 @@
-// src/components/auth/ForgotPassword.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
@@ -51,7 +50,6 @@ const ForgotPassword = () => {
       linkRadius: 200
     };
     
-    // Particle class
     class Particle {
       constructor() {
         this.x = Math.random() * canvas.width;
@@ -101,7 +99,6 @@ const ForgotPassword = () => {
       }
     };
     
-    // Draw links between particles
     const drawLinks = () => {
       for (let i = 0; i < particles.length; i++) {
         for (let j = i + 1; j < particles.length; j++) {
@@ -122,13 +119,11 @@ const ForgotPassword = () => {
       }
     };
     
-    // Handle mouse interaction
     const onMouseMove = (e) => {
       isMouseActive = true;
       mouseX = e.clientX;
       mouseY = e.clientY;
       
-      // Create attraction to mouse
       for (const particle of particles) {
         const dx = mouseX - particle.x;
         const dy = mouseY - particle.y;
@@ -145,7 +140,6 @@ const ForgotPassword = () => {
     
     const onMouseLeave = () => {
       isMouseActive = false;
-      // Reset particles to normal movement
       for (const particle of particles) {
         const angle = Math.floor(Math.random() * 360);
         particle.direction.x = Math.cos(angle) * particle.speed;
@@ -153,20 +147,16 @@ const ForgotPassword = () => {
       }
     };
     
-    // Animation loop
     const animateParticles = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       
-      // Update and draw particles
       for (const particle of particles) {
         particle.update();
         particle.draw();
       }
       
-      // Draw links
       drawLinks();
       
-      // Draw mouse connection if active
       if (isMouseActive) {
         for (const particle of particles) {
           const dx = mouseX - particle.x;
@@ -187,15 +177,12 @@ const ForgotPassword = () => {
       animationFrame = requestAnimationFrame(animateParticles);
     };
     
-    // Set up event listeners
     canvas.addEventListener('mousemove', onMouseMove);
     canvas.addEventListener('mouseleave', onMouseLeave);
     
-    // Start animation
     createParticles();
     animateParticles();
     
-    // Clean up
     return () => {
       cancelAnimationFrame(animationFrame);
       window.removeEventListener('resize', resizeCanvas);
@@ -233,11 +220,6 @@ const ForgotPassword = () => {
     }
     setIsLoading(true);
     try {
-      // API call to request password reset
-      // Replace with actual API endpoint
-      // await api.post('/auth/reset-password', { email: formData.email });
-      
-      // For demo purposes, we'll just simulate a successful request
       await new Promise(resolve => setTimeout(resolve, 1500));
       
       toast.success('Password reset link sent to your email');

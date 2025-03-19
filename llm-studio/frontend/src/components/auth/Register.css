@@ -1,7 +1,5 @@
-/* src/components/auth/Register.css */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
-/* Particle network animation container */
 .register-container {
   display: flex;
   align-items: center;

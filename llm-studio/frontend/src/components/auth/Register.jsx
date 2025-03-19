@@ -23,7 +23,6 @@ const Register = () => {
 
   const particleContainerRef = useRef(null);
 
-  // If user is already authenticated, redirect to dashboard
   useEffect(() => {
     if (isAuthenticated) {
       navigate('/dashboard');

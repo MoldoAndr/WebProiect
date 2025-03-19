@@ -1,4 +1,3 @@
-// src/services/admin-chat.service.js
 import axios from 'axios';
 import { API_URL } from '../config';
 

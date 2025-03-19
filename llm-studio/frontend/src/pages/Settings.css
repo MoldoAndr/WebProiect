@@ -80,20 +80,6 @@
   border-bottom: 1px solid rgba(79, 94, 153, 0.2);
 }
 
-.back-button {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background-color: rgba(79, 94, 153, 0.2);
-  color: #e2e8f0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  border: none;
-  margin-right: 1rem;
-}
 
 .back-button:hover {
   background-color: rgba(79, 94, 153, 0.4);
@@ -426,7 +412,7 @@ textarea.form-input {
 }
 
 .section-content {
-  padding: 1.25rem;
+  padding: 0.75rem;
   background-color: rgba(26, 32, 44, 0.3);
   border-top: 1px solid #4a5568;
 }
@@ -483,7 +469,7 @@ textarea.form-input {
 /* Responsive adjustments */
 @media (max-width: 768px) {
   .settings-card {
-    max-width: 95%;
+    max-width: 80%;
     margin: 1rem;
   }
   
@@ -501,12 +487,7 @@ textarea.form-input {
   .settings-content {
     padding: 1rem;
   }
-  
-  .back-button {
-    width: 36px;
-    height: 36px;
-  }
-  
+
   .settings-title {
     font-size: 1.5rem;
   }

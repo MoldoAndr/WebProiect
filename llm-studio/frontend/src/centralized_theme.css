@@ -1,4 +1,3 @@
-/* Unified CSS for LLM Manager Web Application */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
 /* ==================== VARIABLES ==================== */
@@ -1301,13 +1300,6 @@ button {
   border-color: var(--blue-light);
 }
 
-/* Admin cards and tables */
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 1rem;
-  margin-bottom: 1.5rem;
-}
 
 .stat-card,
 .overview-card,
@@ -1366,20 +1358,6 @@ button {
   border-bottom: 1px solid rgba(79, 94, 153, 0.2);
 }
 
-.back-button {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background-color: rgba(79, 94, 153, 0.2);
-  color: #e2e8f0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  border: none;
-  margin-right: 1rem;
-}
 
 .back-button:hover {
   background-color: rgba(79, 94, 153, 0.4);

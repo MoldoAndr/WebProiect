@@ -1,4 +1,3 @@
-// src/components/dashboard/DashboardHeader.jsx
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import { FiUser, FiLogOut, FiSettings, FiCpu, FiMessageCircle } from "react-icons/fi";

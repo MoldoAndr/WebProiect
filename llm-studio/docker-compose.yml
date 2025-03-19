@@ -53,7 +53,7 @@ services:
     container_name: llm-studio-frontend
     restart: unless-stopped
     environment:
-      - REACT_APP_API_URL=${FRONTEND_URL:-http://localhost:8000/api}
+      - REACT_APP_API_URL=http://localhost:8000/api
     ports:
       - "3000:3000"
     depends_on:

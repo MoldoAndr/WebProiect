@@ -1,4 +1,3 @@
-// Mock conversation service for development
 let mockConversations = [
   {
     id: 1,
