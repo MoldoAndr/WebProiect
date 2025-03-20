@@ -127,6 +127,7 @@ const Settings = () => {
         for (let j = i + 1; j < particles.length; j++) {
           const dx = particles[i].x - particles[j].x;
           const dy = particles[i].y - particles[j].y;
+          const distance = Math.sqrt(dx * dx + dy * dy);
           
           if (distance < options.linkRadius) {
             const opacity = 1 - distance / options.linkRadius;
@@ -149,8 +150,9 @@ const Settings = () => {
       for (const particle of particles) {
         const dx = mouseX - particle.x;
         const dy = mouseY - particle.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
         const force = options.linkRadius / distance;
-        
+
         if (distance < options.linkRadius) {
           const angle = Math.atan2(dy, dx);
         }
@@ -180,6 +182,7 @@ const Settings = () => {
         for (const particle of particles) {
           const dx = mouseX - particle.x;
           const dy = mouseY - particle.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
           
           if (distance < options.linkRadius) {
             ctx.strokeStyle = `rgba(70, 130, 180, ${(1 - distance / options.linkRadius) * 0.8})`;

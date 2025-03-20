@@ -24,10 +24,7 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://localhost",
-        "http://localhost:3000",
-        "https://localhost", 
-        "https://localhost:3000",
+        "*"
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -45,11 +42,16 @@ async def shutdown():
     logger.info("Shutting down application")
     await close_mongo_connection()
 
-# Include API routes
-app.include_router(auth, prefix=f"{settings.API_V1_STR}/auth", tags=["authentication"])
-app.include_router(users, prefix=f"{settings.API_V1_STR}/users", tags=["users"])
-app.include_router(llms, prefix=f"{settings.API_V1_STR}/llms", tags=["llms"])
-app.include_router(conversations, prefix=f"{settings.API_V1_STR}/conversations", tags=["conversations"])
+app.include_router(auth, prefix="/auth", tags=["authentication"])
+app.include_router(users, prefix="/users", tags=["users"])
+app.include_router(llms, prefix="/llms", tags=["llms"])
+app.include_router(conversations, prefix="/conversations", tags=["conversations"])
+
+# Also include the same routes with the /api prefix for backward compatibility
+app.include_router(auth, prefix="/api/auth", tags=["authentication"])
+app.include_router(users, prefix="/api/users", tags=["users"])
+app.include_router(llms, prefix="/api/llms", tags=["llms"])
+app.include_router(conversations, prefix="/api/conversations", tags=["conversations"])
 
 # Health check endpoint
 @app.get("/health")

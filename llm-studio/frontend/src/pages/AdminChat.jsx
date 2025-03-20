@@ -477,64 +477,33 @@ const AdminChat = () => {
             </>
           ) : (
             <div className="empty-state">
-              <div class="container">
-                <div class="square black">
-                  <div class="square">
-                    <div class="square black">
-                      <div class="square">
-                        <div class="square black">
-                          <div class="square">
-                            <div class="square black">
-                              <div class="square">
-                                <div class="square black">
-                                  <div class="square">
-                                    <div class="square black">
-                                      <div class="square">
-                                        <div class="square black">
-                                          <div class="square">
-                                            <div class="square black">
-                                              <div class="square">
-                                                <div class="square black">
-                                                  <div class="square">
-                                                    <div class="square black">
-                                                      <div class="square">
-                                                        <div class="square black">
-                                                          <div class="square">
-                                                            <div class="square black">
-                                                              <div class="square">
-                                                                <div class="square black">
-                                                                  <div class="square">
-                                                                    <div class="square black">
-                                                                      <div class="square">
-                                                                        <div class="square black"></div>
-                                                                      </div>
-                                                                    </div>
-                                                                  </div>
-                                                                </div>
-                                                              </div>
-                                                            </div>
-                                                          </div>
-                                                        </div>
-                                                      </div>
-                                                    </div>
-                                                  </div>
-                                                </div>
-                                              </div>
-                                            </div>
-                                          </div>
-                                        </div>
-                                      </div>
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+              <div className="wave"></div>
+              <div className="cube-container">
+                <div className="outer-cube">
+                  <div className="face front"></div>
+                  <div className="face left"></div>
+                  <div className="face right"></div>
+                  <div className="face top"></div>
+                  <div className="face bottom"></div>
+                  <div className="face back"></div>
                 </div>
+                <div className="inner-cube">
+                  <div className="face front"></div>
+                  <div className="face left"></div>
+                  <div className="face right"></div>
+                  <div className="face top"></div>
+                  <div className="face bottom"></div>
+                  <div className="face back"></div>
+                </div>
+                <div className="middle-cube">
+                  <div className="face front"></div>
+                  <div className="face left"></div>
+                  <div className="face right"></div>
+                  <div className="face top"></div>
+                  <div className="face bottom"></div>
+                  <div className="face back"></div>
+                </div>
+                <div className="wave"></div>
               </div>
               <FiMessageCircle
                 size={48}
