@@ -17,7 +17,7 @@ import Settings from './pages/Settings';
 import AdminDashboard from './pages/AdminDashboard';
 import AdminChat from './pages/AdminChat';
 import Unauthorized from './pages/Unauthorized';
-
+import TechnicianDashboard from './pages/TechnicianDashboard';
 // Legal pages
 import TermsOfService from './components/legal/TermsOfService';
 import PrivacyPolicy from './components/legal/PrivacyPolicy';
@@ -82,7 +82,14 @@ function App() {
             </RoleBasedRoute>
           }
         />
-        
+        <Route
+          path="/technician-dashboard"
+          element={
+            <RoleBasedRoute allowedRoles={['user']}>
+              <TechnicianDashboard />
+            </RoleBasedRoute>
+          }
+        />
         {/* Default route - redirect to login */}
         <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="*" element={<Navigate to="/login" replace />} />
