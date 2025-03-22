@@ -110,3 +110,4 @@ networks:
 # Define volumes
 volumes:
   mongodb-data:
+
