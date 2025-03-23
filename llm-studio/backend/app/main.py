@@ -1,3 +1,4 @@
+from app.routes import llm_manager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import logging
@@ -5,6 +6,8 @@ import logging
 from app.core.config import settings
 from app.core.db import connect_to_mongo, close_mongo_connection
 from app.routes import auth, users, llms, conversations
+
+
 
 # Setup logging
 logging.basicConfig(
@@ -42,6 +45,11 @@ async def shutdown():
     logger.info("Shutting down application")
     await close_mongo_connection()
 
+app.include_router(
+    llm_manager.router,
+    prefix="/api/llm-manager",
+    tags=["llm-manager"]
+)
 app.include_router(auth, prefix="/auth", tags=["authentication"])
 app.include_router(users, prefix="/users", tags=["users"])
 app.include_router(llms, prefix="/llms", tags=["llms"])

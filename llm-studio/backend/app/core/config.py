@@ -6,7 +6,7 @@ class Settings(BaseSettings):
     # API
     API_V1_STR: str = "/api"
     PROJECT_NAME: str = "LLM Studio"
-    
+    LLM_MANAGER_URL: str = os.getenv("LLM_MANAGER_URL", "http://llm-api:5000")
     # Security - simplified but still secure
     SECRET_KEY: str = os.getenv("SECRET_KEY", secrets.token_urlsafe(32))
     ALGORITHM: str = "HS256"
