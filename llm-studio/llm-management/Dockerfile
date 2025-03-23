@@ -1,8 +1,5 @@
 FROM python:3.11-slim
-
 WORKDIR /app
-
-# Install build dependencies and Docker CLI
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     curl \
@@ -16,21 +13,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get install -y docker-ce-cli \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Python dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
-
-# Create necessary directory structure
 RUN mkdir -p /app/app/db
-
-# Copy application code
 COPY . .
-
-# Make sure all necessary directories exist
 RUN mkdir -p /app/app/db
-
-# Expose the port
 EXPOSE 8000
-
-# Run the FastAPI application with uvicorn
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

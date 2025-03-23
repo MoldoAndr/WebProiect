@@ -112,3 +112,15 @@ async def update_user_role(user_id: str, role: str) -> Optional[User]:
     )
     
     return await get_user_by_id(user_id)
+
+async def get_user_by_email(email: str) -> Optional[User]:
+    """Get user by email"""
+    db = await get_database()
+    user_data = await db.users.find_one({"email": email})
+
+    if not user_data:
+        return None
+
+    # Convert ObjectId to str
+    user_data["id"] = str(user_data.pop("_id"))
+    return User(**user_data)

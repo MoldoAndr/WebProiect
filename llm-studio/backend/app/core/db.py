@@ -1,6 +1,7 @@
 from motor.motor_asyncio import AsyncIOMotorClient
 import logging
 from app.core.config import settings
+import ssl
 
 logger = logging.getLogger(__name__)
 
@@ -11,17 +12,32 @@ class Database:
 db = Database()
 
 async def connect_to_mongo():
-    """Connect to MongoDB - simplified connection"""
+    """Connect to MongoDB with enhanced security"""
     logger.info("Connecting to MongoDB...")
     
     try:
-        # Connect to MongoDB with single connection string
-        db.client = AsyncIOMotorClient(settings.MONGO_URI)
+        # Prepare connection options with proper TLS/SSL settings
+        conn_options = {
+            "serverSelectionTimeoutMS": 5000,
+            "connectTimeoutMS": 10000,
+            "retryWrites": True,
+            "retryReads": True
+        }
+        
+        # Configure TLS/SSL if running in production
+        if settings.PRODUCTION:
+            conn_options.update({
+                "ssl": True,
+                "ssl_cert_reqs": ssl.CERT_REQUIRED
+            })
+        
+        # Connect to MongoDB with the secure connection string
+        db.client = AsyncIOMotorClient(settings.MONGO_URI, **conn_options)
         db.db = db.client.get_database()
         
         # Simple connection test
         await db.client.admin.command('ping')
-        logger.info("Connected to MongoDB")
+        logger.info("Connected to MongoDB successfully")
     except Exception as e:
         logger.error(f"Could not connect to MongoDB: {e}")
         raise
