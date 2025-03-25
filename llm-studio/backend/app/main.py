@@ -5,11 +5,10 @@ import logging
 
 from app.core.config import settings
 from app.core.db import connect_to_mongo, close_mongo_connection
-from app.routes import auth, users, llms, conversations
-# Make sure we import the websocket module
+from app.routes import auth, users, conversations
+from app.routes import llm_manager
 from app.routes import websocket
 
-# Setup logging
 logging.basicConfig(
     level=getattr(logging, settings.LOG_LEVEL.upper()),
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -26,7 +25,7 @@ app = FastAPI(
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins for development
+    allow_origins=settings.BACKEND_CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -43,21 +42,15 @@ async def shutdown():
     logger.info("Shutting down application")
     await close_mongo_connection()
 
-# Include standard API routes
-app.include_router(auth, prefix="/auth", tags=["authentication"])
-app.include_router(users, prefix="/users", tags=["users"])
-app.include_router(llms, prefix="/llms", tags=["llms"])
-app.include_router(conversations, prefix="/conversations", tags=["conversations"])
+# Include API routes
+# Standard API endpoints
+app.include_router(auth, prefix=f"{settings.API_V1_STR}/auth", tags=["authentication"])
+app.include_router(users, prefix=f"{settings.API_V1_STR}/users", tags=["users"])
+app.include_router(conversations, prefix=f"{settings.API_V1_STR}/conversations", tags=["conversations"])
+app.include_router(llm_manager.router, prefix=f"{settings.API_V1_STR}/llm-manager", tags=["llm-manager"])
 
-# Include WebSocket routes - Add at the root level, not under any prefix
-# This is important! WebSocket routes must be at root level, not under /api
+# WebSocket endpoint at root level
 app.include_router(websocket.router, tags=["websocket"])
-
-# Include the same routes with the /api prefix for backward compatibility
-app.include_router(auth, prefix="/api/auth", tags=["authentication"])
-app.include_router(users, prefix="/api/users", tags=["users"])
-app.include_router(llms, prefix="/api/llms", tags=["llms"])
-app.include_router(conversations, prefix="/api/conversations", tags=["conversations"])
 
 # Health check endpoint
 @app.get("/health")

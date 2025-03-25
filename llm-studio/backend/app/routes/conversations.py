@@ -1,9 +1,12 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from typing import List
+from fastapi import APIRouter, Depends, HTTPException, status, WebSocket, WebSocketDisconnect
+from typing import List, Optional
+from pydantic import BaseModel
 
 from app.models.user import User
-from app.models.conversation import Conversation, ConversationCreate, ConversationUpdate, PromptRequest, PromptResponse
-from app.core.security import get_current_user
+from app.models.conversation import Conversation, ConversationCreate, ConversationUpdate
+from app.models.prompt import PromptRequest, PromptResponse
+from app.core.security import get_current_user, get_current_user_ws
+from app.core.websocket import connection_manager
 from app.services.conversation_service import (
     get_conversation,
     get_user_conversations,
@@ -117,15 +120,31 @@ async def delete_conversation_by_id(
     
     return {"detail": "Conversation deleted successfully"}
 
+class PromptData(BaseModel):
+    """Model for prompt requests"""
+    conversation_id: str
+    prompt: str
+    system_prompt: Optional[str] = None
+
 @router.post("/prompt", response_model=PromptResponse)
 async def send_prompt_to_llm(
-    prompt_request: PromptRequest,
+    prompt_data: PromptData,
     current_user: User = Depends(get_current_user)
 ):
-    """Send a prompt to an LLM"""
+    """Send a prompt to an LLM using LLMManager"""
     try:
-        response = await process_prompt(current_user.id, prompt_request)
-        return PromptResponse(**response)
+        response = await process_prompt(
+            current_user.id, 
+            prompt_data.conversation_id, 
+            prompt_data.prompt,
+            prompt_data.system_prompt
+        )
+        
+        return PromptResponse(
+            response=response["response"],
+            conversation_id=response["conversation_id"],
+            processing_time=response.get("processing_time")
+        )
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
