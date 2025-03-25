@@ -3,48 +3,29 @@ import json
 import uuid
 import logging
 from typing import Dict, Any
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, status, HTTPException
-from app.core.security import decode_token
-from app.core.websocket import connection_manager
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, status
+from app.core.security import get_current_user_ws
+from app.core.websocket import connection_manager  # This should now be properly importable
 from app.services.llm_manager_service import llm_manager_service
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-async def get_user_from_websocket(websocket: WebSocket):
-    """Get user ID from WebSocket token"""
-    token = websocket.query_params.get("token")
-    if not token:
-        await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Missing token")
-        raise ValueError("Missing authentication token")
-
-    try:
-        payload = decode_token(token)
-        user_id = payload.get("sub")
-        
-        if not user_id:
-            await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Invalid token")
-            raise ValueError("Invalid authentication token")
-            
-        return user_id
-    except Exception as e:
-        logger.error(f"WebSocket authentication error: {e}")
-        await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Authentication failed")
-        raise
-
 @router.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     """WebSocket endpoint for realtime LLM responses"""
     try:
         # Authenticate the user
-        user_id = await get_user_from_websocket(websocket)
+        user = await get_current_user_ws(websocket)
+        user_id = user.id
         
         # Generate a unique client ID
         client_id = str(uuid.uuid4())
         
         # Accept the connection
         await connection_manager.connect(websocket, client_id, user_id)
+        logger.info(f"WebSocket connection established for user {user_id}")
         
         try:
             while True:
@@ -84,6 +65,7 @@ async def websocket_endpoint(websocket: WebSocket):
                     
         except WebSocketDisconnect:
             connection_manager.disconnect(client_id)
+            logger.info(f"WebSocket connection closed for user {user_id}")
             
     except Exception as e:
         logger.error(f"WebSocket error: {e}")

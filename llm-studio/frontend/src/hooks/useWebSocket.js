@@ -3,8 +3,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from './useAuth';
 
-const WEBSOCKET_RETRY_DELAY = 3000;
-const PING_INTERVAL = 30000;
+const WEBSOCKET_RETRY_DELAY = 5000;
+const PING_INTERVAL = 60000;
 
 export function useWebSocket() {
   const { isAuthenticated } = useAuth();
@@ -85,7 +85,6 @@ export function useWebSocket() {
       }
     };
     
-    // Try the alternative WebSocket URL if main fails
     const tryAlternativeUrl = () => {
       try {
         const url = getAlternativeWebSocketUrl();
