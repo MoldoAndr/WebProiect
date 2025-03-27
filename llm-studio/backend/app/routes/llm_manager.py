@@ -36,7 +36,7 @@ router = APIRouter()
 # ----- Model Management Endpoints -----
 
 @router.get("/models")
-async def get_models(current_user: User = Depends(get_current_user)):
+async def get_models():
     """Get all available LLM models"""
     try:
         return await llm_manager_service.get_models()

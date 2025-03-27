@@ -1,127 +1,17 @@
+// src/pages/Dashboard.jsx
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
-import {
-  FiPlus,
-  FiMessageSquare,
-  FiSettings,
-  FiMenu,
-  FiX,
-  FiSend,
-  FiUser,
-  FiLogOut,
-  FiCpu,
-  FiActivity,
-} from "react-icons/fi";
+import { FiPlus, FiMenu, FiX } from "react-icons/fi";
 import DashboardHeader from "../components/dashboard/DashboardHeader";
 import ChatInterface from "../components/dashboard/ChatInterface";
 import ConversationHistory from "../components/dashboard/ConversationHistory";
 import LLMSelector from "../components/dashboard/LLMSelector";
 import UserStats from "../components/dashboard/UserStats";
 import { useAuth } from "../hooks/useAuth";
+import { useWebSocketContext } from "../contexts/WebSocketContext";
+import { llmApiService } from "../services/llmApi.service";
 import "./Dashboard.css";
-
-const mockLLMs = [
-  {
-    id: 1,
-    name: "GPT-4",
-    description: "Most capable model",
-    tokenLimit: 8000,
-    costPer1kTokens: "$0.08",
-  },
-  {
-    id: 2,
-    name: "Claude 3",
-    description: "Balanced performance",
-    tokenLimit: 100000,
-    costPer1kTokens: "$0.07",
-  },
-  {
-    id: 3,
-    name: "Gemini Pro",
-    description: "Google's multimodal model",
-    tokenLimit: 12000,
-    costPer1kTokens: "$0.06",
-  },
-  {
-    id: 4,
-    name: "Llama 3",
-    description: "Open source option",
-    tokenLimit: 10000,
-    costPer1kTokens: "$0.01",
-  },
-  {
-    id: 5,
-    name: "Mistral Large",
-    description: "Strong performance",
-    tokenLimit: 32000,
-    costPer1kTokens: "$0.05",
-  },
-];
-
-const mockConversations = [
-  {
-    id: 1,
-    title: "Project planning assistance",
-    updated_at: "2023-06-15T10:30:00Z",
-    messages: [
-      {
-        id: 1,
-        role: "user",
-        content: "Can you help me plan a software project timeline?",
-        created_at: "2023-06-15T10:30:00Z",
-      },
-      {
-        id: 2,
-        role: "assistant",
-        content:
-          "I'd be happy to help you plan a software project timeline. To get started, could you tell me about:\n\n1. The scope of your project\n2. Available resources (team size, skills)\n3. Any hard deadlines\n4. Major features or milestones",
-        created_at: "2023-06-15T10:30:30Z",
-      },
-    ],
-  },
-  {
-    id: 2,
-    title: "Code review help",
-    updated_at: "2023-06-14T14:22:00Z",
-    messages: [
-      {
-        id: 3,
-        role: "user",
-        content: "I need help optimizing this Python function",
-        created_at: "2023-06-14T14:22:00Z",
-      },
-      {
-        id: 4,
-        role: "assistant",
-        content:
-          "I'd be glad to help optimize your Python function. Could you share the code you'd like me to review?",
-        created_at: "2023-06-14T14:22:30Z",
-      },
-    ],
-  },
-  {
-    id: 3,
-    title: "Database design discussion",
-    updated_at: "2023-06-12T09:15:00Z",
-    messages: [
-      {
-        id: 5,
-        role: "user",
-        content:
-          "What would be the best database structure for a social media app?",
-        created_at: "2023-06-12T09:15:00Z",
-      },
-      {
-        id: 6,
-        role: "assistant",
-        content:
-          "For a social media application, you'll need a database design that handles user profiles, relationships between users, content posts, interactions, and more. Here's a high-level structure I would recommend...",
-        created_at: "2023-06-12T09:15:45Z",
-      },
-    ],
-  },
-];
 
 const mockUserStats = {
   totalConversations: 24,
@@ -132,14 +22,23 @@ const mockUserStats = {
 
 const Dashboard = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [conversations, setConversations] = useState(mockConversations);
+  const [conversations, setConversations] = useState([]);
+  const [availableLLMs, setAvailableLLMs] = useState([]);
   const [selectedConversationId, setSelectedConversationId] = useState(null);
   const [selectedLLM, setSelectedLLM] = useState(null);
   const [userStats, setUserStats] = useState(mockUserStats);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingLLMs, setIsLoadingLLMs] = useState(true);
+  const [isLoadingConversations, setIsLoadingConversations] = useState(true);
+  const [error, setError] = useState(null);
 
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
+  const {
+    createConversation: wsCreateConversation,
+    sendPrompt,
+    isConnected: wsConnected,
+  } = useWebSocketContext();
 
   const activeConversation = conversations.find(
     (conv) => conv.id === selectedConversationId
@@ -148,35 +47,100 @@ const Dashboard = () => {
   useEffect(() => {
     const loadInitialData = async () => {
       setIsLoading(true);
-      try {
-        setIsLoading(false);
-      } catch (error) {
-        console.error("Error loading data:", error);
-        toast.error("Failed to load data");
-        setIsLoading(false);
-      }
+
+      await loadLLMs();
+      await loadConversations();
+
+      setIsLoading(false);
     };
 
     loadInitialData();
   }, []);
 
-  const handleCreateNewConversation = () => {
+  const loadLLMs = async () => {
+    setIsLoadingLLMs(true);
+    try {
+      const llms = await llmApiService.getAllLLMs();
+      console.log("Loaded LLMs:", llms);
+      setAvailableLLMs(llms);
+    } catch (error) {
+      console.error("Error loading LLMs:", error);
+      setError("Failed to load LLM models. Please try again later.");
+      toast.error("Failed to load LLM models");
+    } finally {
+      setIsLoadingLLMs(false);
+    }
+  };
+
+  const loadConversations = async () => {
+    setIsLoadingConversations(true);
+    try {
+      const response = await fetch("/api/conversations", {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to load conversations: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      console.log("Loaded conversations:", data);
+      setConversations(data);
+
+      // Update user stats
+      setUserStats({
+        ...userStats,
+        totalConversations: data.length,
+        totalMessages: data.reduce(
+          (acc, conv) => acc + (conv.messages?.length || 0),
+          0
+        ),
+      });
+    } catch (error) {
+      console.error("Error loading conversations:", error);
+      // Use mock data for development
+      console.warn("Using mock conversation data");
+      // You might want to keep your mock data here for development
+    } finally {
+      setIsLoadingConversations(false);
+    }
+  };
+
+  const handleCreateNewConversation = async () => {
+    console.log("Selected Conversation ID:", selectedConversationId);
+    console.log("Active Conversation:", activeConversation);
     if (!selectedLLM) {
       toast.warning("Please select an LLM model first");
       return;
     }
 
-    const newConversation = {
-      id: Date.now(), 
-      title: "New conversation",
-      updated_at: new Date().toISOString(),
-      messages: [],
-      llmId: selectedLLM.id,
-    };
+    setIsLoading(true);
+    try {
+      const username = user?.username || "user";
+      const llmId = selectedLLM.id;
+      const uniqueHex = Math.random().toString(16).substring(2, 10);
+      const conversationId = `${username}_${llmId}_${uniqueHex}`;
 
-    setConversations([newConversation, ...conversations]);
-    setSelectedConversationId(newConversation.id);
-    toast.success("New conversation created");
+      const newConversation = await llmApiService.createConversation(
+        selectedLLM.id,
+        conversationId
+      );
+
+      if (wsConnected) {
+        await wsCreateConversation(selectedLLM.id, newConversation.id);
+      }
+
+      setConversations([newConversation, ...conversations]);
+      setSelectedConversationId(newConversation.id);
+      toast.success("New conversation created");
+    } catch (error) {
+      console.error("Error creating conversation:", error);
+      toast.error("Failed to create conversation");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleSendMessage = async (message) => {
@@ -191,12 +155,13 @@ const Dashboard = () => {
     }
 
     const userMessage = {
-      id: Date.now(),
+      id: Date.now(), // Temporary ID
       role: "user",
       content: message,
       created_at: new Date().toISOString(),
     };
 
+    // Optimistically update UI
     const updatedConversations = conversations.map((conv) => {
       if (conv.id === activeConversation.id) {
         return {
@@ -211,50 +176,62 @@ const Dashboard = () => {
     setConversations(updatedConversations);
 
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      // Use WebSocket if connected, otherwise use REST API
+      if (wsConnected) {
+        await sendPrompt(activeConversation.id, message);
+        return Promise.resolve();
+      } else {
+        // Fallback to REST API
+        const response = await llmApiService.sendMessage(
+          activeConversation.id,
+          message
+        );
 
-      const assistantMessage = {
-        id: Date.now() + 1,
-        role: "assistant",
-        content: `This is a simulated response from ${selectedLLM.name}. In a real application, this would be an actual response from the LLM API based on your message: "${message}"`,
-        created_at: new Date().toISOString(),
-      };
+        // Update with the actual response
+        const assistantMessage = {
+          id: Date.now() + 1, // Temporary ID
+          role: "assistant",
+          content: response.response,
+          created_at: new Date().toISOString(),
+        };
 
-      const finalUpdatedConversations = conversations.map((conv) => {
-        if (conv.id === activeConversation.id) {
-          const newTitle =
-            conv.messages.length === 0
-              ? message.substring(0, 30) + (message.length > 30 ? "..." : "")
-              : conv.title;
+        setConversations(
+          conversations.map((conv) => {
+            if (conv.id === activeConversation.id) {
+              const newTitle =
+                conv.messages.length === 0
+                  ? message.substring(0, 30) +
+                    (message.length > 30 ? "..." : "")
+                  : conv.title;
 
-          return {
-            ...conv,
-            title: newTitle,
-            messages: [...conv.messages, userMessage, assistantMessage],
-            updated_at: new Date().toISOString(),
-          };
-        }
-        return conv;
-      });
+              return {
+                ...conv,
+                title: newTitle,
+                messages: [...conv.messages, userMessage, assistantMessage],
+                updated_at: new Date().toISOString(),
+              };
+            }
+            return conv;
+          })
+        );
 
-      setConversations(finalUpdatedConversations);
+        // Update user stats
+        setUserStats({
+          ...userStats,
+          totalMessages: userStats.totalMessages + 2,
+        });
 
-      setUserStats({
-        ...userStats,
-        totalMessages: userStats.totalMessages + 2, 
-      });
+        return Promise.resolve();
+      }
     } catch (error) {
       console.error("Error getting LLM response:", error);
       toast.error("Failed to get response from LLM");
+      return Promise.reject(error);
     }
-
-    return Promise.resolve();
   };
 
   const toggleSidebar = () => {
-    const newState = !sidebarOpen;
-    console.log("Toggling sidebar, new state:", newState);
-    setSidebarOpen(newState);
+    setSidebarOpen(!sidebarOpen);
   };
 
   useEffect(() => {
@@ -265,13 +242,16 @@ const Dashboard = () => {
         setSidebarOpen(true);
       }
     };
+
     handleResize();
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
+
   return (
     <div className="dashboard-container">
       <DashboardHeader user={user} />
+
       <div className="dashboard-content">
         <button className="sidebar-toggle" onClick={toggleSidebar}>
           {sidebarOpen ? <FiX size={20} /> : <FiMenu size={20} />}
@@ -284,26 +264,39 @@ const Dashboard = () => {
             <button
               className="new-chat-button"
               onClick={handleCreateNewConversation}
+              disabled={!selectedLLM || isLoading}
             >
               <FiPlus size={16} />
-              <span>New Chat</span>
+              <span>{isLoading ? "Creating..." : "New Chat"}</span>
             </button>
 
             <div className="sidebar-section">
               <h3 className="sidebar-section-title">LLM Selection</h3>
-              <LLMSelector
-                llms={mockLLMs}
-                selectedLLM={selectedLLM}
-                onLLMSelect={setSelectedLLM}
-              />
+              {isLoadingLLMs ? (
+                <div className="loading-indicator">Loading LLMs...</div>
+              ) : error ? (
+                <div className="error-message">{error}</div>
+              ) : (
+                <LLMSelector
+                  llms={availableLLMs}
+                  selectedLLM={selectedLLM}
+                  onLLMSelect={setSelectedLLM}
+                />
+              )}
             </div>
 
             <div className="history-container">
-              <ConversationHistory
-                conversations={conversations}
-                selectedConversationId={selectedConversationId}
-                onConversationSelect={setSelectedConversationId}
-              />
+              {isLoadingConversations ? (
+                <div className="loading-indicator">
+                  Loading conversations...
+                </div>
+              ) : (
+                <ConversationHistory
+                  conversations={conversations}
+                  selectedConversationId={selectedConversationId}
+                  onConversationSelect={setSelectedConversationId}
+                />
+              )}
             </div>
 
             <div className="sidebar-section">
@@ -315,7 +308,7 @@ const Dashboard = () => {
         <div className="main-content">
           {!selectedConversationId ? (
             <div className="empty-state">
-                <div className="wave"></div>
+              <div className="wave"></div>
               <div className="cube-container">
                 <div className="outer-cube">
                   <div className="face front"></div>
@@ -337,16 +330,21 @@ const Dashboard = () => {
               </div>
               <h2 className="empty-state-title">Welcome to LLM Studio</h2>
               <p className="empty-state-description">
-                Select a conversation from the sidebar or create a new one to
-                get started. Make sure to select an LLM model first.
+                {isLoadingLLMs
+                  ? "Loading available LLM models..."
+                  : availableLLMs.length > 0
+                  ? "Select a conversation from the sidebar or create a new one to get started. Make sure to select an LLM model first."
+                  : "No LLM models available. Please ask an administrator to configure LLM models."}
               </p>
               <button
                 className="new-chat-button"
                 onClick={handleCreateNewConversation}
-                disabled={!selectedLLM}
+                disabled={!selectedLLM || isLoading}
               >
                 <FiPlus size={18} />
-                <span>Start New Conversation</span>
+                <span>
+                  {isLoading ? "Creating..." : "Start New Conversation"}
+                </span>
               </button>
             </div>
           ) : (

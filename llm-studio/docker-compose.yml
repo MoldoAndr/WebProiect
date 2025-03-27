@@ -21,6 +21,37 @@ services:
     networks:
       - llm-studio-network
 
+  llm-api:
+    hostname: llm-api
+    container_name: llm-studio-llm-api
+    build:
+      context: ./LLMManager/LLMManager
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./LLMManager/LLMManager/models:/app/models
+      - ./LLMManager/data:/app/data
+    environment:
+      - MODEL_DIR=/app/models
+      - DATA_DIR=/app/data
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped
+    shm_size: 1gb
+    deploy:
+      resources:
+        limits:
+          memory: 3G
+        reservations:
+          memory: 1G
+    command: >
+      bash -c "
+        python app.py & 
+        sleep 6 && 
+        ./initialize_models.sh && 
+        wait
+      "
+    networks:
+      - llm-studio-network
   # Backend service
   backend:
     build:
@@ -80,33 +111,7 @@ services:
     networks:
       - llm-studio-network
 
-  llm-api:
-    build:
-      context: ./LLMManager/LLMManager
-    ports:
-      - "5000:5000"
-    volumes:
-      - ./LLMManager/LLMManager/models:/app/models
-      - ./LLMManager/data:/app/data
-    environment:
-      - MODEL_DIR=/app/models
-      - DATA_DIR=/app/data
-      - PYTHONUNBUFFERED=1
-    restart: unless-stopped
-    shm_size: 1gb
-    deploy:
-      resources:
-        limits:
-          memory: 3G
-        reservations:
-          memory: 1G
-    command: >
-      bash -c "
-        python app.py & 
-        sleep 6 && 
-        ./initialize_models.sh && 
-        wait
-      "
+
 
 networks:
   llm-studio-network:

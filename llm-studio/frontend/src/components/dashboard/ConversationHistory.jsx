@@ -5,18 +5,12 @@ const ConversationHistory = ({ conversations, selectedConversationId, onConversa
   const formatDate = (dateString) => {
     const date = new Date(dateString);
     const now = new Date();
-    
-    // If today, show time
     if (date.toDateString() === now.toDateString()) {
       return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     }
-    
-    // If this year, show month and day
     if (date.getFullYear() === now.getFullYear()) {
       return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
     }
-    
-    // Otherwise show date with year
     return date.toLocaleDateString([], { year: 'numeric', month: 'short', day: 'numeric' });
   };
   

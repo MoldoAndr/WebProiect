@@ -737,15 +737,6 @@ button {
   background-color: rgba(26, 32, 44, 0.4);
 }
 
-.sidebar-section-title {
-  font-size: 12px;
-  text-transform: uppercase;
-  color: var(--blue-light);
-  margin: 0 0 8px 0;
-  font-weight: 500;
-  letter-spacing: 0.05em;
-}
-
 .new-chat-button {
   display: flex;
   align-items: center;

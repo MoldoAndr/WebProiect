@@ -490,8 +490,9 @@ body {
   max-height: 40vh;
   /* Limit height to enable scrolling */
 }
-
 .sidebar-section-title {
+  overflow-x: auto;           /* or scroll */
+  white-space: nowrap;        
   font-size: 12px;
   text-transform: uppercase;
   color: #5c70e2;
@@ -908,6 +909,7 @@ body {
 .llm-info {
   margin-top: 10px;
   display: flex;
+  overflow-x: scroll;
 }
 
 .avatar {
