@@ -1,4 +1,3 @@
-# app/core/websocket.py
 import logging
 from typing import Dict, List, Any, Callable, Awaitable
 from fastapi import WebSocket, WebSocketDisconnect, status

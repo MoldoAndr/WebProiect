@@ -15,70 +15,83 @@ async def get_conversation(conversation_id: str) -> Optional[Conversation]:
     """Get conversation by ID with messages"""
     db = await get_database()
     
-    # Get conversation
-    conversation_data = await db.conversations.find_one({"_id": ObjectId(conversation_id)})
+    try:
+        object_id = ObjectId(conversation_id)
+    except:
+        logger.error(f"Invalid ObjectId format: {conversation_id}")
+        return None
+    logger.error("Searching for elements in the database with the ID of conversation...")
+    conversation_data = await db.conversations.find_one({"_id": object_id})
     if not conversation_data:
         return None
     
-    # Convert ObjectId to str
     conversation_data["id"] = str(conversation_data.pop("_id"))
     
-    # Get messages for this conversation
     messages = []
     cursor = db.messages.find({"conversation_id": conversation_id}).sort("created_at", 1)
     
     async for message_data in cursor:
-        message_data["id"] = str(message_data.pop("_id"))
+        content["id"] = str(message_data.pop("_id"))
         messages.append(Message(**message_data))
     
-    # Add messages to conversation
     conversation_data["messages"] = messages
     
     return Conversation(**conversation_data)
 
+
+
+
 async def get_user_conversations(user_id: str) -> List[Conversation]:
-    """Get all conversations for a user"""
+    """Get all conversations for a user, including all their messages."""
     db = await get_database()
-    
-    # Get conversations
+
+    # Query conversations belonging to the user, sorted by updated_at descending.
     cursor = db.conversations.find({"user_id": user_id}).sort("updated_at", -1)
     conversations = []
-    
-    async for conversation_data in cursor:
-        conversation_data["id"] = str(conversation_data.pop("_id"))
+
+    async for conv in cursor:
+        # Convert the conversation _id to a string.
+        conv["id"] = str(conv.pop("_id"))
         
-        # Get messages count instead of full messages for efficiency
-        message_count = await db.messages.count_documents({"conversation_id": conversation_data["id"]})
+        # Fetch all messages belonging to this conversation.
+        # Here we assume messages store "conversation_id" as a string.
+        messages_cursor = db.messages.find({"conversation_id": conv["id"]}).sort("created_at", 1)
+        messages = []
+        async for msg in messages_cursor:
+            # Convert message _id to a string.
+            msg["id"] = str(msg.pop("_id"))
+            # Optionally, ensure conversation_id is a string too.
+            if "conversation_id" in msg and isinstance(msg["conversation_id"], ObjectId):
+                msg["conversation_id"] = str(msg["conversation_id"])
+            messages.append(msg)
         
-        # Get last message for preview
-        if message_count > 0:
-            last_message = await db.messages.find_one(
-                {"conversation_id": conversation_data["id"]},
-                sort=[("created_at", -1)]
-            )
-            if last_message:
-                conversation_data["last_message"] = {
-                    "role": last_message["role"],
-                    "content": last_message["content"][:100] + ("..." if len(last_message["content"]) > 100 else ""),
-                    "created_at": last_message["created_at"]
-                }
+        conv["messages"] = messages
         
-        # Create conversation object with empty messages list
-        conversation_data["messages"] = []
-        conversations.append(Conversation(**conversation_data))
+        # Optionally, compute a 'last_message' summary.
+        if messages:
+            last_message = messages[-1]  # Since we sort ascending, the last is the most recent.
+            conv["last_message"] = {
+                "role": last_message.get("role"),
+                "content": last_message.get("content", "")[:100] + ("..." if len(last_message.get("content", "")) > 100 else ""),
+                "created_at": last_message.get("created_at")
+            }
+        else:
+            conv["last_message"] = None
+        
+        # Create a Conversation model instance from the dictionary.
+        conversations.append(Conversation(**conv))
     
     return conversations
+
 
 async def create_conversation(user_id: str, data: ConversationCreate) -> Conversation:
     """Create a new conversation"""
     db = await get_database()
     
-    # Check if LLM exists
     llm = await get_llm_by_id(data.llm_id)
     if not llm:
         raise ValueError(f"LLM with ID {data.llm_id} not found")
     
-    # Create conversation
     now = datetime.utcnow()
     conversation_doc = {
         "user_id": user_id,
@@ -88,20 +101,15 @@ async def create_conversation(user_id: str, data: ConversationCreate) -> Convers
         "updated_at": now
     }
     
-    # Insert into database
     result = await db.conversations.insert_one(conversation_doc)
     conversation_id = str(result.inserted_id)
     
-    # Also create conversation in LLMManager
     try:
-        # Initialize a conversation in LLMManager
         await llm_manager_service.create_conversation(data.llm_id, conversation_id)
         logger.info(f"Created LLMManager conversation: {conversation_id} with model {data.llm_id}")
     except Exception as e:
         logger.error(f"Failed to create LLMManager conversation: {e}")
-        # We continue even if this fails - the conversation exists in our DB
     
-    # Return created conversation
     conversation_doc["id"] = conversation_id
     conversation_doc["messages"] = []
     return Conversation(**conversation_doc)
@@ -110,33 +118,41 @@ async def update_conversation(conversation_id: str, data: ConversationUpdate) ->
     """Update conversation information"""
     db = await get_database()
     
-    # Prepare update data
+    try:
+        object_id = ObjectId(conversation_id)
+    except:
+        logger.error(f"Invalid ObjectId format: {conversation_id}")
+        return None
+    
     update_data = {k: v for k, v in data.dict().items() if v is not None}
     update_data["updated_at"] = datetime.utcnow()
     
-    # Update conversation
     if update_data:
-        await db.conversations.update_one(
-            {"_id": ObjectId(conversation_id)},
+        result = await db.conversations.update_one(
+            {"_id": object_id},
             {"$set": update_data}
         )
+        if result.matched_count == 0:
+            return None
     
-    # Return updated conversation
     return await get_conversation(conversation_id)
 
 async def delete_conversation(conversation_id: str) -> bool:
     """Delete a conversation and its messages"""
     db = await get_database()
     
-    # Delete conversation
-    result = await db.conversations.delete_one({"_id": ObjectId(conversation_id)})
+    try:
+        object_id = ObjectId(conversation_id)
+    except:
+        logger.error(f"Invalid ObjectId format: {conversation_id}")
+        return False
+    
+    result = await db.conversations.delete_one({"_id": object_id})
     if result.deleted_count == 0:
         return False
     
-    # Delete all messages in the conversation
     await db.messages.delete_many({"conversation_id": conversation_id})
     
-    # Try to reset the conversation in LLMManager (not critical if it fails)
     try:
         await llm_manager_service.reset_conversation(conversation_id)
     except Exception as e:
@@ -148,7 +164,16 @@ async def add_message(conversation_id: str, role: str, content: str, metadata: D
     """Add a message to a conversation"""
     db = await get_database()
     
-    # Create message document
+    try:
+        print("adding message...")
+        object_id = ObjectId(conversation_id)
+        conversation = await db.conversations.find_one({"_id": object_id})
+        if not conversation:
+            raise ValueError(f"Conversation {conversation_id} not found")
+    except Exception as e:
+        logger.error(f"Error validating conversation: {e}")
+        raise ValueError(f"Conversation validation error: {str(e)}")
+    
     message_doc = {
         "conversation_id": conversation_id,
         "role": role,
@@ -157,75 +182,70 @@ async def add_message(conversation_id: str, role: str, content: str, metadata: D
         "metadata": metadata or {}
     }
     
-    # Insert into database
     result = await db.messages.insert_one(message_doc)
     message_id = str(result.inserted_id)
     
-    # Update conversation's updated_at timestamp
     await db.conversations.update_one(
-        {"_id": ObjectId(conversation_id)},
+        {"_id": object_id},
         {"$set": {"updated_at": datetime.utcnow()}}
     )
     
-    # Return created message
     message_doc["id"] = message_id
     return Message(**message_doc)
 
 async def process_prompt(user_id: str, conversation_id: str, prompt: str, system_prompt: Optional[str] = None) -> Dict[str, Any]:
     """Process a prompt and get response from LLM using LLMManager"""
-    # Verify conversation exists and belongs to user
-    conversation = await get_conversation(conversation_id)
-    if not conversation:
-        raise ValueError(f"Conversation with ID {conversation_id} not found")
-    
-    if conversation.user_id != user_id:
-        raise ValueError("You don't have access to this conversation")
-    
-    # Add user message to conversation
-    await add_message(conversation_id, "user", prompt)
-    
-    # Get response from LLMManager
-    start_time = time.time()
-    
     try:
-        response_data = await llm_manager_service.send_message(conversation_id, prompt)
-        response_text = response_data.get("response", "")
+        conversation = await get_conversation(conversation_id)
+        if not conversation:
+            raise ValueError(f"Conversation with ID {conversation_id} not found")
         
-        # Calculate processing time
-        processing_time = time.time() - start_time
+        if conversation.user_id != user_id:
+            raise ValueError("You don't have access to this conversation")
+        print("in process_prompt adding message...")
+        await add_message(conversation_id, "user", prompt)
         
-        # Add assistant message
-        await add_message(conversation_id, "assistant", response_text, {
-            "processing_time": processing_time
-        })
+        start_time = time.time()
         
-        # If this is the first message in the conversation, update the title
-        messages = await db.messages.count_documents({"conversation_id": conversation_id})
-        if messages <= 2:  # Just the user message and the new response
-            # Use the first few words of the prompt as the title
-            title_from_prompt = ' '.join(prompt.split()[:5]) + "..."
-            await update_conversation(
-                conversation_id,
-                ConversationUpdate(title=title_from_prompt)
-            )
+        try:
+            response_data = await llm_manager_service.send_message(conversation_id, prompt)
+            response_text = response_data.get("response", "")
+            
+            processing_time = time.time() - start_time
+            
+            await add_message(conversation_id, "assistant", response_text, {
+                "processing_time": processing_time
+            })
+            
+            db = await get_database()
+            messages = await db.messages.count_documents({"conversation_id": conversation_id})
+            if messages <= 2:
+                title_from_prompt = ' '.join(prompt.split()[:5]) + "..."
+                await update_conversation(
+                    conversation_id,
+                    ConversationUpdate(title=title_from_prompt)
+                )
+            
+            return {
+                "response": response_text,
+                "conversation_id": conversation_id,
+                "processing_time": processing_time
+            }
         
-        # Return response data
-        return {
-            "response": response_text,
-            "conversation_id": conversation_id,
-            "processing_time": processing_time
-        }
-    
+        except Exception as e:
+            logger.error(f"Error calling LLMManager: {str(e)}")
+            
+            error_message = f"Error: {str(e)}"
+            await add_message(conversation_id, "system", error_message, {"error": True})
+            
+            return {
+                "response": error_message,
+                "conversation_id": conversation_id,
+                "error": True
+            }
+    except ValueError as e:
+        logger.error(f"Value error in process_prompt: {str(e)}")
+        raise
     except Exception as e:
-        logger.error(f"Error calling LLMManager: {str(e)}")
-        
-        # Save the error as a message in the conversation
-        error_message = f"Error: {str(e)}"
-        await add_message(conversation_id, "system", error_message, {"error": True})
-        
-        # Return error response
-        return {
-            "response": error_message,
-            "conversation_id": conversation_id,
-            "error": True
-        }
+        logger.error(f"Unexpected error in process_prompt: {str(e)}")
+        raise ValueError(f"Error processing prompt: {str(e)}")

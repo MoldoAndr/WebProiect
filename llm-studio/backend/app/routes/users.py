@@ -18,14 +18,12 @@ async def update_current_user_info(
     current_user: User = Depends(get_current_user)
 ):
     """Update current user information"""
-    # Users can't change their own role
     if "role" in user_data.dict(exclude_unset=True):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="You cannot change your own role"
         )
     
-    # Update user
     updated_user = await update_user(current_user.id, user_data)
     if not updated_user:
         raise HTTPException(
@@ -35,7 +33,6 @@ async def update_current_user_info(
     
     return updated_user
 
-# Admin routes
 @router.get("", response_model=List[UserResponse])
 async def get_users(
     skip: int = 0,
@@ -67,14 +64,12 @@ async def update_user_info(
     admin_user: User = Depends(check_admin_access)
 ):
     """Update user information (admin only)"""
-    # Prevent admin from deactivating themselves
     if user_id == admin_user.id and user_data.is_active is False:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="You cannot deactivate your own account"
         )
     
-    # Update user
     updated_user = await update_user(user_id, user_data)
     if not updated_user:
         raise HTTPException(
@@ -90,14 +85,12 @@ async def delete_user_account(
     admin_user: User = Depends(check_admin_access)
 ):
     """Delete user (admin only)"""
-    # Prevent admin from deleting themselves
     if user_id == admin_user.id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="You cannot delete your own account"
         )
     
-    # Delete user
     success = await delete_user(user_id)
     if not success:
         raise HTTPException(
@@ -114,21 +107,18 @@ async def change_user_role(
     admin_user: User = Depends(check_admin_access)
 ):
     """Change user role (admin only)"""
-    # Validate role
     if role not in ["user", "admin", "technician"]:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid role. Must be one of: user, admin, technician"
         )
     
-    # Prevent admin from changing their own role
     if user_id == admin_user.id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="You cannot change your own role"
         )
     
-    # Update user role
     updated_user = await update_user_role(user_id, role)
     if not updated_user:
         raise HTTPException(

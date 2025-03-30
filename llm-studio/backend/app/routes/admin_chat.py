@@ -1,4 +1,3 @@
-# app/api/routes/admin_chat.py
 from fastapi import APIRouter, Depends, HTTPException, status
 from typing import List
 
@@ -18,7 +17,6 @@ from app.core.security import get_current_user, get_admin_user
 
 router = APIRouter()
 
-# User routes
 
 @router.get("/tickets", response_model=List[TicketResponse])
 async def get_user_tickets_route(current_user: User = Depends(get_current_user)):
@@ -45,7 +43,6 @@ async def get_ticket_route(
     if not ticket:
         raise HTTPException(status_code=404, detail="Ticket not found")
     
-    # Check if the user has access to this ticket
     if ticket.user_id != current_user.id and current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Not authorized to access this ticket")
     
@@ -63,13 +60,10 @@ async def add_user_message(
     if not ticket:
         raise HTTPException(status_code=404, detail="Ticket not found")
     
-    # Check if the user has access to this ticket
     if ticket.user_id != current_user.id and current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Not authorized to access this ticket")
     
-    # Check if the ticket is closed
     if ticket.status == TicketStatus.CLOSED:
-        # If the ticket is closed and the user tries to send a message, reopen it
         await reopen_ticket(ticket_id)
     
     try:
@@ -83,7 +77,6 @@ async def add_user_message(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-# Admin routes
 
 @router.get("/admin/tickets", response_model=List[TicketResponse])
 async def get_all_tickets(

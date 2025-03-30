@@ -1,4 +1,3 @@
-# app/main.py
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import logging
@@ -16,13 +15,11 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-# Create FastAPI app
 app = FastAPI(
     title=settings.PROJECT_NAME,
     openapi_url=f"{settings.API_V1_STR}/openapi.json"
 )
 
-# CORS middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.BACKEND_CORS_ORIGINS,
@@ -31,7 +28,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Startup and shutdown events
 @app.on_event("startup")
 async def startup():
     logger.info("Starting application")
@@ -42,22 +38,16 @@ async def shutdown():
     logger.info("Shutting down application")
     await close_mongo_connection()
 
-# Include API routes
-# Standard API endpoints
 app.include_router(auth, prefix=f"{settings.API_V1_STR}/auth", tags=["authentication"])
 app.include_router(users, prefix=f"{settings.API_V1_STR}/users", tags=["users"])
 app.include_router(conversations, prefix=f"{settings.API_V1_STR}/conversations", tags=["conversations"])
 app.include_router(llm_manager.router, prefix=f"{settings.API_V1_STR}/llm-manager", tags=["llm-manager"])
-
-# WebSocket endpoint at root level
 app.include_router(websocket.router, tags=["websocket"])
 
-# Health check endpoint
 @app.get("/health")
 async def health_check():
     return {"status": "healthy", "version": "1.0.0"}
 
-# Root endpoint
 @app.get("/")
 async def root():
     return {

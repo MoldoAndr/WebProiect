@@ -1,176 +1,208 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { FiSend, FiCopy, FiThumbsUp, FiThumbsDown, FiClock, FiWifi, FiWifiOff } from "react-icons/fi";
+import { FiSend, FiCopy, FiWifi, FiWifiOff } from "react-icons/fi";
 import { toast } from "react-toastify";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import remarkBreaks from "remark-breaks";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { atomDark } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { useWebSocketContext } from "../../contexts/WebSocketContext";
 
-const CodeBlock = ({ language, value }) => {
-  return (
-    <div className="relative">
-      <div className="absolute right-2 top-2">
-        <button
-          onClick={() => {
-            navigator.clipboard.writeText(value);
-            toast.success("Code copied to clipboard");
-          }}
-          className="copy-button"
-          aria-label="Copy code"
-        >
-          <FiCopy size={14} />
-        </button>
-      </div>
-      <SyntaxHighlighter language={language || "text"} style={atomDark}>
-        {value}
-      </SyntaxHighlighter>
+const CodeBlock = ({ language, value }) => (
+  <div className="relative">
+    <div className="absolute right-2 top-2">
+      <button
+        onClick={() => {
+          navigator.clipboard.writeText(value);
+          toast.success("Code copied to clipboard");
+        }}
+        className="copy-button"
+        aria-label="Copy code"
+      >
+        <FiCopy size={14} />
+      </button>
     </div>
-  );
-};
+    <SyntaxHighlighter language={language || "text"} style={atomDark}>
+      {value}
+    </SyntaxHighlighter>
+  </div>
+);
+
+const Message = ({ message, isUser }) => (
+  <div className={`flex ${isUser ? "justify-end" : "justify-start"} mb-4`}>
+    <div className={isUser ? "message message-user" : "message message-bot"}>
+      {isUser ? (
+        <p className="whitespace-pre-wrap">{message.content}</p>
+      ) : (
+        <div className="message-content">
+          <ReactMarkdown
+            remarkPlugins={[remarkGfm, remarkBreaks]}
+            components={markdownComponents}
+          >
+            {message.content}
+          </ReactMarkdown>
+        </div>
+      )}
+    </div>
+  </div>
+);
 
 const markdownComponents = {
   code({ node, inline, className, children, ...props }) {
-    const match = /language-(\w+)/.exec(className || "");
-
-    return !inline && match ? (
-      <CodeBlock
-        language={match[1]}
-        value={String(children).replace(/\n$/, "")}
-      />
-    ) : (
-      <code className={`bg-gray-700 px-1 rounded ${className}`} {...props}>
-        {children}
-      </code>
-    );
+    if (inline) {
+      return (
+        <code
+          style={{
+            backgroundColor: '#f0f0f0',
+            padding: '2px 4px',
+            borderRadius: '4px',
+          }}
+          {...props}
+        >
+          {children}
+        </code>
+      );
+    } else {
+      return (
+        <pre
+          style={{
+            backgroundColor: '#f0f0f0',
+            padding: '10px',
+            borderRadius: '4px',
+            overflowX: 'auto',
+          }}
+        >
+          <code className={className} {...props}>
+            {children}
+          </code>
+        </pre>
+      );
+    }
   },
 };
 
-const Message = ({ message, isUser, isStreaming = false }) => {
-  return (
-    <div className={`flex ${isUser ? "justify-end" : "justify-start"} mb-4`}>
-      <div className={isUser ? "message message-user" : "message message-bot"}>
-        {isUser ? (
-          <p className="whitespace-pre-wrap">{message.content}</p>
-        ) : (
-          <div className="message-content">
-            <ReactMarkdown components={markdownComponents}>
-              {message.content}
-            </ReactMarkdown>
-            {isStreaming && (
-              <span className="streaming-indicator">
-                <span className="typing-dot"></span>
-                <span className="typing-dot"></span>
-                <span className="typing-dot"></span>
-              </span>
-            )}
-          </div>
-        )}
+const StreamingMessage = ({ content }) => (
+  <div className="flex justify-start mb-4">
+    <div className="message message-bot">
+      <div className="message-content">
+        <ReactMarkdown
+          remarkPlugins={[remarkGfm, remarkBreaks]}
+          components={markdownComponents}
+        >
+          {content || ""}
+        </ReactMarkdown>
+        <span className="streaming-indicator">
+          <span className="typing-dot"></span>
+          <span className="typing-dot"></span>
+          <span className="typing-dot"></span>
+        </span>
       </div>
     </div>
-  );
-};
-
-const StreamingMessage = ({ content, conversationId }) => {
-  return (
-    <div className="flex justify-start mb-4">
-      <div className="message message-bot">
-        <div className="message-content">
-          <ReactMarkdown components={markdownComponents}>
-            {content || ""}
-          </ReactMarkdown>
-          <span className="streaming-indicator">
-            <span className="typing-dot"></span>
-            <span className="typing-dot"></span>
-            <span className="typing-dot"></span>
-          </span>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const ChatInterface = ({ conversation, onSendMessage, isLLMSelected }) => {
+  </div>
+);
+const ChatInterface = ({ conversation, isLLMSelected }) => {
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
-  const [streamingContent, setStreamingContent] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
+  // Local messages state initialized from conversation prop.
+  const [localMessages, setLocalMessages] = useState(conversation?.messages || []);
   const messagesEndRef = useRef(null);
   const textareaRef = useRef(null);
   
-  const { isConnected, sendPrompt, subscribeToConversation, getStreamContent } = useWebSocketContext();
+  // Use a ref to always have the latest streaming content.
+  const streamingContentRef = useRef("");
+  const [streamingContent, setStreamingContent] = useState("");
+  
+  const { isConnected, sendPrompt, subscribeToConversation } = useWebSocketContext();
 
-  const messages = conversation?.messages || [];
+  useEffect(() => {
+    if (conversation) {
+      setLocalMessages(conversation.messages || []);
+    }
+  }, [conversation]);
 
-  // Auto-scroll to bottom on new messages
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, streamingContent]);
+  }, [localMessages, streamingContent]);
 
-  // Auto-resize textarea
   useEffect(() => {
-    const textarea = textareaRef.current;
-    if (textarea) {
-      textarea.style.height = "auto";
-      const newHeight = Math.min(textarea.scrollHeight, 120);
-      textarea.style.height = `${newHeight}px`;
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
+      const newHeight = Math.min(textareaRef.current.scrollHeight, 120);
+      textareaRef.current.style.height = `${newHeight}px`;
     }
   }, [input]);
   
-  // Subscribe to WebSocket messages for the current conversation
+  const handleNewAssistantMessage = useCallback((content) => {
+    const newMessage = {
+      id: Date.now(),
+      role: "assistant",
+      content,
+      created_at: new Date().toISOString(),
+    };
+    setLocalMessages((prev) => [...prev, newMessage]);
+  }, []);
+  
+  // Subscribe to WebSocket messages for the current conversation.
   useEffect(() => {
     if (!conversation?.id) return;
     
     const unsubscribe = subscribeToConversation(conversation.id, (data) => {
-      if (data.type === 'stream') {
+      if (data.type === "stream") {
         setIsStreaming(true);
-        setStreamingContent(prev => prev + (data.content || ''));
-      } else if (data.type === 'complete') {
+        // Update both state and ref.
+        setStreamingContent((prev) => {
+          const newContent = prev + (data.content || "");
+          streamingContentRef.current = newContent;
+          return newContent;
+        });
+      } else if (data.type === "complete") {
         setIsStreaming(false);
-        setStreamingContent('');
+        // Use the ref to capture the complete streaming content.
+        const finalContent = streamingContentRef.current;
+        handleNewAssistantMessage(finalContent);
+        setStreamingContent("");
+        streamingContentRef.current = "";
         setIsTyping(false);
       }
     });
     
     return () => unsubscribe();
-  }, [conversation?.id, subscribeToConversation]);
-
+  }, [conversation?.id, subscribeToConversation, handleNewAssistantMessage]);
+  
   const handleSubmit = async (e) => {
     e.preventDefault();
-
     if (!input.trim()) return;
     if (!isLLMSelected) {
       toast.error("Please select an LLM model first");
       return;
     }
-    
     if (!conversation?.id) {
       toast.error("No active conversation");
       return;
     }
-
-    // Don't send if we're already streaming
     if (isStreaming) {
       toast.info("Please wait for the current response to complete");
       return;
     }
 
-    // Clear input and set typing indicator
     const message = input.trim();
     setInput("");
     setIsTyping(true);
-    setStreamingContent("");
-
+    // Add the user's message optimistically.
+    const userMessage = {
+      id: Date.now(),
+      role: "user",
+      content: message,
+      created_at: new Date().toISOString(),
+    };
+    setLocalMessages((prev) => [...prev, userMessage]);
+    
     try {
-      // First add the user message to the UI immediately
-      await onSendMessage(message);
-      
-      // Then send through WebSocket for streaming response
       if (isConnected) {
-        sendPrompt(conversation.id, message);
+        await sendPrompt(conversation.id, message);
       } else {
-        // Fallback to regular API if WebSocket is not connected
-        toast.warning("Using non-streaming mode - WebSocket disconnected");
-        await onSendMessage(message, true);
+        toast.error("WebSocket disconnected. Please try again later.");
         setIsTyping(false);
       }
     } catch (error) {
@@ -181,21 +213,14 @@ const ChatInterface = ({ conversation, onSendMessage, isLLMSelected }) => {
   };
 
   const handleKeyDown = (e) => {
-    // Submit on Enter, but allow Shift+Enter for new lines
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSubmit(e);
     }
   };
 
-  const handleFeedback = (messageId, isPositive) => {
-    toast.success(`Thanks for your ${isPositive ? 'positive' : 'negative'} feedback!`);
-    // Implement feedback submission to API here
-  };
-
   return (
     <div className="chat-container">
-      {/* WebSocket Connection Status */}
       <div className="websocket-status">
         {isConnected ? (
           <span className="ws-connected">
@@ -208,60 +233,27 @@ const ChatInterface = ({ conversation, onSendMessage, isLLMSelected }) => {
         )}
       </div>
 
-      {/* Messages area */}
       <div className="messages-container">
-        {conversation ? (
-          <>
-            {messages.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full text-gray-400">
-                <p className="text-lg mb-2">Start a conversation</p>
-                <p className="text-sm text-center max-w-md">
-                  Type a message below to start chatting with the selected LLM.
-                </p>
-              </div>
-            ) : (
-              // Render all messages in the conversation
-              messages.map((message, index) => (
-                <Message
-                  key={message.id || `msg-${index}`}
-                  message={message}
-                  isUser={message.role === "user"}
-                />
-              ))
-            )}
-
-            {/* Streaming message if active */}
-            {isStreaming && streamingContent && (
-              <StreamingMessage 
-                content={streamingContent} 
-                conversationId={conversation.id} 
-              />
-            )}
-
-            {/* Typing indicator (for non-streaming responses) */}
-            {isTyping && !isStreaming && (
-              <div className="typing-indicator">
-                <div className="typing-dot"></div>
-                <div className="typing-dot"></div>
-                <div className="typing-dot"></div>
-              </div>
-            )}
-
-            {/* Auto-scroll anchor */}
-            <div ref={messagesEndRef} />
-          </>
-        ) : (
+        {localMessages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-gray-400">
-            <p className="text-lg mb-2">No conversation selected</p>
+            <p className="text-lg mb-2">Start a conversation</p>
             <p className="text-sm text-center max-w-md">
-              Select a conversation from the sidebar or create a new one to get
-              started.
+              Type a message below to start chatting with the selected LLM.
             </p>
           </div>
+        ) : (
+          localMessages.map((msg, index) => (
+            <Message key={msg.id || `msg-${index}`} message={msg} isUser={msg.role === "user"} />
+          ))
         )}
+
+        {isStreaming && streamingContent && (
+          <StreamingMessage content={streamingContent} />
+        )}
+
+        <div ref={messagesEndRef} />
       </div>
 
-      {/* Floating input area */}
       <div className="input-container">
         <form onSubmit={handleSubmit} className="message-input">
           <textarea
@@ -271,7 +263,7 @@ const ChatInterface = ({ conversation, onSendMessage, isLLMSelected }) => {
             onKeyDown={handleKeyDown}
             placeholder={
               conversation
-                ? "Type your message here... (Press Enter to send, Shift+Enter for new line)"
+                ? "Type your message here... (Enter to send, Shift+Enter for new line)"
                 : "Select or create a conversation to start chatting"
             }
             disabled={!conversation || isTyping}

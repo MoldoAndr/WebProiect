@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from datetime import timedelta
+import logging
 
 from app.core.security import create_access_token, verify_password
 from app.core.config import settings
@@ -10,16 +11,15 @@ from app.services.user_service import get_user_by_username, get_user_by_email, c
 
 router = APIRouter()
 
+logger = logging.getLogger(__name__)
+
 @router.post("/login")
 async def login(form_data: OAuth2PasswordRequestForm = Depends()):
     """Login endpoint with improved security"""
     try:
-        # Get user by username
         user = await get_user_by_username(form_data.username)
         
-        # Verify user exists and password is correct
         if not user or not verify_password(form_data.password, user.hashed_password):
-            # Use consistent timing to prevent timing attacks
             await asyncio.sleep(0.5)
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -33,14 +33,12 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
                 detail="Inactive user account"
             )
             
-        # Create access token
         access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
         access_token = create_access_token(
             data={"sub": str(user.id)},
             expires_delta=access_token_expires
         )
         
-        # Return token and user data
         return {
             "access_token": access_token,
             "token_type": "bearer",
@@ -67,7 +65,6 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
 async def register(user_data: UserCreate):
     """Register endpoint"""
     try:
-        # Check if username already exists
         existing_user = await get_user_by_username(user_data.username)
         if existing_user:
             raise HTTPException(
@@ -75,7 +72,6 @@ async def register(user_data: UserCreate):
                 detail="Username already registered"
             )
 
-        # Check if email already exists
         existing_email = await get_user_by_email(user_data.email)
         if existing_email:
             raise HTTPException(
@@ -83,19 +79,16 @@ async def register(user_data: UserCreate):
                 detail="Email already registered"
             )
 
-        # Create user
         user = await create_user(user_data)
         return UserResponse(
             id=user.id,
             username=user.username,
             email=user.email,
-            full_name=user.full_name,
             role=user.role,
             is_active=user.is_active,
             created_at=user.created_at
         )
     except Exception as e:
-        # Log the error for debugging
         logger.error(f"Registration error: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

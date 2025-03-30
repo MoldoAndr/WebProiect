@@ -5,6 +5,7 @@ import { API_URL } from '../config';
 class LLMApiService {
   constructor() {
     this.baseUrl = `${API_URL}/llm-manager`;
+    this.conversationsUrl = `${API_URL}/conversations`;
   }
 
   // Get all available LLM models
@@ -12,7 +13,6 @@ class LLMApiService {
     try {
       console.log('Requesting LLMs from:', `${this.baseUrl}/models`);
       const response = await axios.get(`${this.baseUrl}/models`);
-      console.log('LLM response received:', response.data);
       
       // Check if the response data has the expected structure
       if (!response.data || typeof response.data !== 'object') {
@@ -42,14 +42,15 @@ class LLMApiService {
     }
   }
 
+  // Create a new conversation
   async createConversation(modelId, conversationId = null) {
     try {
-      const response = await axios.post(`${this.baseUrl}/conversation`, null, {
-        params: {
-          model_id: modelId,
-          conversation_id: conversationId
-        }
+      // Use the standard conversations endpoint for creation
+      const response = await axios.post(this.conversationsUrl, {
+        title: `New conversation with ${modelId}`,
+        llm_id: modelId
       });
+      
       return response.data;
     } catch (error) {
       console.error('Error creating conversation:', error);
@@ -59,12 +60,22 @@ class LLMApiService {
       throw new Error(`Failed to create conversation: ${error.message}`);
     }
   }
-  
+
+  // Get all conversations
+  async getConversations() {
+    try {
+      const response = await axios.get(this.conversationsUrl);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching conversations:', error);
+      throw new Error('Failed to fetch conversations');
+    }
+  }
 
   // Get conversation history
   async getConversationHistory(conversationId) {
     try {
-      const response = await axios.get(`${this.baseUrl}/conversation/${conversationId}`);
+      const response = await axios.get(`${this.conversationsUrl}/${conversationId}`);
       return response.data;
     } catch (error) {
       console.error(`Error fetching conversation history:`, error);
@@ -86,36 +97,14 @@ class LLMApiService {
   // Send a message to a conversation
   async sendMessage(conversationId, message) {
     try {
-      const response = await axios.post(`${this.baseUrl}/chat`, {
+      const response = await axios.post(`${this.conversationsUrl}/prompt`, {
         conversation_id: conversationId,
-        message: message
+        prompt: message
       });
       return response.data;
     } catch (error) {
       console.error(`Error sending message:`, error);
       throw new Error(`Failed to send message`);
-    }
-  }
-
-  // Add a new LLM model (technician/admin only)
-  async addModel(modelData) {
-    try {
-      const response = await axios.post(`${this.baseUrl}/models`, modelData);
-      return response.data;
-    } catch (error) {
-      console.error(`Error adding model:`, error);
-      throw new Error(`Failed to add model`);
-    }
-  }
-
-  // Delete an LLM model (technician/admin only)
-  async deleteModel(modelId) {
-    try {
-      const response = await axios.delete(`${this.baseUrl}/models/${modelId}`);
-      return response.data;
-    } catch (error) {
-      console.error(`Error deleting model:`, error);
-      throw new Error(`Failed to delete model`);
     }
   }
 

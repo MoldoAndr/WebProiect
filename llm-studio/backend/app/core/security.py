@@ -1,4 +1,3 @@
-# app/core/security.py
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any, Union
 from jose import JWTError, jwt
@@ -12,7 +11,6 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# Password handling
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_STR}/auth/login")
 
@@ -27,13 +25,11 @@ def get_password_hash(password: str) -> str:
 def create_access_token(data: Union[Dict[str, Any], str], expires_delta: Optional[timedelta] = None) -> str:
     """Create JWT access token with improved security"""
     
-    # If data is just a user ID string, convert to expected format
     if isinstance(data, str):
         data = {"sub": data}
     
     to_encode = data.copy()
     
-    # Set expiration
     if expires_delta:
         expire = datetime.utcnow() + expires_delta
     else:
@@ -41,12 +37,11 @@ def create_access_token(data: Union[Dict[str, Any], str], expires_delta: Optiona
     
     to_encode.update({
         "exp": expire,
-        "iat": datetime.utcnow(),                  # Issued at
-        "jti": secrets.token_hex(16),             # JWT ID for uniqueness
-        "type": "access"                          # Token type
+        "iat": datetime.utcnow(),
+        "jti": secrets.token_hex(16),
+        "type": "access"
     })
     
-    # Create JWT token
     return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
 def decode_token(token: str) -> Dict[str, Any]:
@@ -95,7 +90,6 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> User:
             headers={"WWW-Authenticate": "Bearer"},
         )
     
-    # Get user from database
     from app.services.user_service import get_user_by_id
     user = await get_user_by_id(user_id)
     
@@ -113,7 +107,6 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> User:
     
     return user
 
-# WebSocket authentication
 async def get_current_user_ws(websocket: WebSocket) -> User:
     """Get current user from WebSocket token"""
     try:
@@ -150,7 +143,6 @@ async def get_current_user_ws(websocket: WebSocket) -> User:
             detail="Could not validate credentials",
         )
     
-    # Get user from database
     from app.services.user_service import get_user_by_id
     user = await get_user_by_id(user_id)
     
@@ -170,7 +162,6 @@ async def get_current_user_ws(websocket: WebSocket) -> User:
     
     return user
 
-# Role-based access control
 def check_admin_access(user: User = Depends(get_current_user)):
     """Check if user has admin access"""
     if user.role != "admin":

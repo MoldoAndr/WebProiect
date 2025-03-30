@@ -1,4 +1,3 @@
-# app/services/prompt_service.py
 import httpx
 import time
 import logging
@@ -17,36 +16,29 @@ async def send_prompt(prompt_request: PromptRequest) -> PromptResponse:
     """Send a prompt to an LLM and save the response"""
     start_time = time.time()
     
-    # Get the LLM
     llm = await get_llm(prompt_request.llm_id)
     if not llm:
         raise ValueError(f"LLM with ID {prompt_request.llm_id} not found")
     
-    # Get the conversation to set title if it's a new conversation
     conversation = await get_conversation(prompt_request.conversation_id)
     if not conversation:
         raise ValueError(f"Conversation with ID {prompt_request.conversation_id} not found")
     
-    # Save the user's prompt to the conversation
     await add_message_to_conversation(
         conversation_id=prompt_request.conversation_id,
         role="user",
         content=prompt_request.prompt
     )
     
-    # Prepare the request to the LLM
     api_request = {
         "prompt": prompt_request.prompt,
         "system_prompt": prompt_request.system_prompt or settings.DEFAULT_SYSTEM_PROMPT,
         "parameters": prompt_request.parameters or {}
     }
     
-    # Get the LLM response
     try:
-        # Handle different LLM APIs based on type
         llm_response = await call_llm_api(llm, api_request)
         
-        # Save the LLM's response to the conversation
         response_message = await add_message_to_conversation(
             conversation_id=prompt_request.conversation_id,
             role="assistant",
@@ -54,9 +46,7 @@ async def send_prompt(prompt_request: PromptRequest) -> PromptResponse:
             metadata={"processing_time": time.time() - start_time}
         )
         
-        # If this is the first message in the conversation, update the title
         if len(conversation.messages) == 0:
-            # Use the first few words of the prompt as the title
             title_from_prompt = ' '.join(prompt_request.prompt.split()[:5]) + "..."
             from app.models.conversation import ConversationUpdate
             from app.services.conversation_service import update_conversation
@@ -65,10 +55,9 @@ async def send_prompt(prompt_request: PromptRequest) -> PromptResponse:
                 ConversationUpdate(title=title_from_prompt)
             )
         
-        # Calculate tokens (this would be more accurate if returned from the LLM API)
         tokens = {
-            "prompt": len(prompt_request.prompt.split()) * 1.3,  # Rough estimate
-            "response": len(llm_response.split()) * 1.3  # Rough estimate
+            "prompt": len(prompt_request.prompt.split()) * 1.3,
+            "response": len(llm_response.split()) * 1.3
         }
         
         return PromptResponse(
@@ -80,7 +69,6 @@ async def send_prompt(prompt_request: PromptRequest) -> PromptResponse:
     
     except Exception as e:
         logger.error(f"Error calling LLM API: {str(e)}")
-        # Save the error as a message in the conversation
         await add_message_to_conversation(
             conversation_id=prompt_request.conversation_id,
             role="system",
@@ -92,25 +80,18 @@ async def send_prompt(prompt_request: PromptRequest) -> PromptResponse:
 async def call_llm_api(llm: LLM, request_data: Dict) -> str:
     """Call the LLM API based on the LLM configuration"""
     
-    # For development/demo purposes, return a mock response
     if settings.PRODUCTION is False:
-        # Simulate an API delay
         await asyncio.sleep(1)
         
         prompt = request_data.get("prompt", "")
         return f"This is a simulated response from {llm.name}. In a real application, this would be an actual response from the LLM API based on your message: \"{prompt}\""
     
-    # In production, make the actual API call
     try:
         async with httpx.AsyncClient(timeout=settings.LLM_TIMEOUT) as client:
             headers = {
                 "Content-Type": "application/json"
             }
             
-            # Add any API keys or auth headers here if needed
-            # For example:
-            # if "api_key" in llm.parameters:
-            #     headers["Authorization"] = f"Bearer {llm.parameters['api_key']}"
             
             response = await client.post(
                 llm.api_endpoint,
@@ -123,8 +104,6 @@ async def call_llm_api(llm: LLM, request_data: Dict) -> str:
             
             data = response.json()
             
-            # Extract the text response based on the LLM API response format
-            # This will vary depending on the LLM provider
             text = data.get("response") or data.get("text") or data.get("output") or ""
             
             return text
@@ -141,4 +120,4 @@ async def call_llm_api(llm: LLM, request_data: Dict) -> str:
         logger.error(f"Unexpected error when calling LLM API: {str(e)}")
         raise ValueError(f"Unexpected error: {str(e)}")
 
-import asyncio  # Add this import at the top
+import asyncio

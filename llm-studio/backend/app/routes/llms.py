@@ -31,7 +31,6 @@ async def get_llm(
     
     return llm
 
-# Technician/Admin routes
 @router.post("", response_model=LLM)
 async def create_new_llm(
     llm_data: LLMCreate,

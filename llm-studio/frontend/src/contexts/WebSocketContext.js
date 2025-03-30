@@ -156,8 +156,7 @@ export const WebSocketProvider = ({ children }) => {
     };
   }, []);
   
-  // Function to create a conversation through WebSocket
-  const createConversation = useCallback((modelId, conversationId) => {
+  const createConversation = useCallback((modelId, conversationId = null) => {
     return sendMessage({
       type: 'conversation_create',
       model_id: modelId,
@@ -165,14 +164,11 @@ export const WebSocketProvider = ({ children }) => {
     });
   }, [sendMessage]);
   
-  // Function to send a prompt through WebSocket
   const sendPrompt = useCallback((conversationId, prompt) => {
-    // Clear any existing stream
     setConversationStreams(prev => ({
       ...prev,
       [conversationId]: ''
     }));
-    
     return sendMessage({
       type: 'prompt',
       conversation_id: conversationId,
@@ -180,7 +176,6 @@ export const WebSocketProvider = ({ children }) => {
     });
   }, [sendMessage]);
   
-  // Provide WebSocket functionality to children
   const contextValue = {
     isConnected,
     error,
@@ -198,7 +193,6 @@ export const WebSocketProvider = ({ children }) => {
   );
 };
 
-// Custom hook to use WebSocket context
 export const useWebSocketContext = () => {
   const context = useContext(WebSocketContext);
   if (!context) {

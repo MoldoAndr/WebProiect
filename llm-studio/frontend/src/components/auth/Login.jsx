@@ -14,18 +14,23 @@ const Login = () => {
   const [errors, setErrors] = useState({});
   const [rememberMe, setRememberMe] = useState(false);
   const navigate = useNavigate();
-  const { login, isAuthenticated } = useAuth();
+  const { login, isAuthenticated, user } = useAuth();
   
   const particleContainerRef = useRef(null);
   
-  // If user is already authenticated, redirect to dashboard
+  // Navigate based on the user's role when authenticated
   useEffect(() => {
-    if (isAuthenticated) {
-      navigate('/dashboard');
+    if (isAuthenticated && user) {
+      if (user.role === 'admin') {
+        navigate('/admin-dashboard');
+      } else if (user.role === 'technician') {
+        navigate('/technician-dashboard');
+      } else {
+        navigate('/dashboard');
+      }
     }
-  }, [isAuthenticated, navigate]);
+  }, [isAuthenticated, user, navigate]);
   
-  // Initialize particle effect
   useEffect(() => {
     if (!particleContainerRef.current) return;
     
@@ -242,7 +247,8 @@ const Login = () => {
       }
       
       toast.success('Login successful');
-      navigate('/dashboard');
+      // Navigation is now handled by the useEffect based on user.role
+      
     } catch (error) {
       console.error('Login error:', error);
       toast.error(error.message || 'Login failed. Please try again.');

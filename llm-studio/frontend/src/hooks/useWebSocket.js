@@ -1,197 +1,133 @@
-// frontend/src/hooks/useWebSocket.js
-
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from './useAuth';
 
+// Constants
 const WEBSOCKET_RETRY_DELAY = 5000;
-const PING_INTERVAL = 60000;
-
-// New constant: how long to wait after authentication
-const WS_STARTUP_DELAY = 10000;
+const MAX_RETRY_DELAY = 30000;
+const PING_INTERVAL = 30000;
+const INITIAL_CONNECT_DELAY = 1000;
+const MAX_QUEUE_SIZE = 20;
 
 export function useWebSocket() {
   const { isAuthenticated } = useAuth();
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState(null);
   const [messageQueue, setMessageQueue] = useState([]);
+  
   const webSocketRef = useRef(null);
-  const reconnectTimeoutRef = useRef(null);
+  const retryTimeoutRef = useRef(null);
   const pingIntervalRef = useRef(null);
-  const delayedStartupTimerRef = useRef(null); // <--- We'll store our 10s timer
+  const retryAttemptsRef = useRef(0);
+  const isMountedRef = useRef(false);
 
+  // Get WebSocket URL with token
   const getWebSocketUrl = useCallback(() => {
-    let protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    let baseUrl = `${protocol}//${window.location.host}`;
-    // If you store the token as 'token' or 'access_token', be consistent
-    const token = localStorage.getItem('token') || '';
-    return `${baseUrl}/ws?token=${encodeURIComponent(token)}`;
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const token = localStorage.getItem('token');
+    return `${protocol}//${window.location.host}/ws?token=${encodeURIComponent(token || '')}`;
   }, []);
 
-  // Example "alternative" fallback, though you may not actually need it
-  const getAlternativeWebSocketUrl = useCallback(() => {
-    let protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    let baseUrl = `${protocol}//${window.location.host}`;
-    const token = localStorage.getItem('token') || '';
-    return `${baseUrl}/backend/ws?token=${encodeURIComponent(token)}`;
-  }, []);
-
-  // ---------------------------
-  // 1) Core connect function
-  // ---------------------------
-  const connect = useCallback(() => {
-    // Clear any existing reconnection timeouts
-    if (reconnectTimeoutRef.current) {
-      clearTimeout(reconnectTimeoutRef.current);
-      reconnectTimeoutRef.current = null;
-    }
-
-    if (!isAuthenticated) return;
-
-    // Close existing connection if any
+  // Cleanup all resources
+  const cleanup = useCallback(() => {
     if (webSocketRef.current) {
-      webSocketRef.current.close();
+      webSocketRef.current.onopen = null;
+      webSocketRef.current.onclose = null;
+      webSocketRef.current.onerror = null;
+      webSocketRef.current.close(1000);
       webSocketRef.current = null;
     }
+    
+    if (retryTimeoutRef.current) {
+      clearTimeout(retryTimeoutRef.current);
+      retryTimeoutRef.current = null;
+    }
+    
+    if (pingIntervalRef.current) {
+      clearInterval(pingIntervalRef.current);
+      pingIntervalRef.current = null;
+    }
+  }, []);
 
-    const tryMainUrl = () => {
-      try {
-        const url = getWebSocketUrl();
-        console.log('Connecting to WebSocket:', url);
+  // Handle WebSocket connection
+  const connect = useCallback(() => {
+    if (!isAuthenticated || !isMountedRef.current) return;
+    
+    cleanup(); // Cleanup any existing connection
+    
+    try {
+      const url = getWebSocketUrl();
+      const ws = new WebSocket(url);
+      webSocketRef.current = ws;
 
-        const ws = new WebSocket(url);
-        webSocketRef.current = ws;
-        setupWebSocket(ws);
-      } catch (err) {
-        console.error('Error setting up WebSocket with main URL:', err);
-        setError(`Main URL connection failed: ${err.message}`);
-        tryAlternativeUrl();
-      }
-    };
-
-    const tryAlternativeUrl = () => {
-      try {
-        const url = getAlternativeWebSocketUrl();
-        console.log('Connecting to alternative WebSocket URL:', url);
-
-        const ws = new WebSocket(url);
-        webSocketRef.current = ws;
-        setupWebSocket(ws);
-      } catch (err) {
-        console.error('Error setting up WebSocket with alternative URL:', err);
-        setError(`Failed to connect: ${err.message}`);
-        // Attempt to reconnect after delay
-        reconnectTimeoutRef.current = setTimeout(connect, WEBSOCKET_RETRY_DELAY);
-      }
-    };
-
-    // ---------------------------
-    // 2) Setup WS event handlers
-    // ---------------------------
-    const setupWebSocket = (ws) => {
       ws.onopen = () => {
+        if (!isMountedRef.current) return;
+        
         console.log('WebSocket connected');
         setIsConnected(true);
         setError(null);
-
-        // Send any queued messages
+        retryAttemptsRef.current = 0;
+        
+        // Send queued messages
         if (messageQueue.length > 0) {
-          messageQueue.forEach(msg => {
+          const messagesToSend = [...messageQueue];
+          setMessageQueue([]);
+          messagesToSend.forEach(msg => {
             ws.send(JSON.stringify(msg));
           });
-          setMessageQueue([]);
         }
-
-        // Keep connection alive with periodic pings
+        
+        // Setup ping interval
         pingIntervalRef.current = setInterval(() => {
           if (ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({ type: 'ping' }));
+            ws.send(JSON.stringify({ type: 'ping', timestamp: Date.now() }));
           }
         }, PING_INTERVAL);
       };
 
       ws.onclose = (event) => {
-        console.log('WebSocket disconnected:', event.code, event.reason);
+        if (!isMountedRef.current) return;
+        
+        console.log('WebSocket closed:', event.code, event.reason);
         setIsConnected(false);
-
-        // Clear ping interval
-        if (pingIntervalRef.current) {
-          clearInterval(pingIntervalRef.current);
-          pingIntervalRef.current = null;
-        }
-
-        // Attempt to reconnect unless this was a clean closure (1000)
-        if (event.code !== 1000) {
-          reconnectTimeoutRef.current = setTimeout(connect, WEBSOCKET_RETRY_DELAY);
+        cleanup();
+        
+        if (event.code !== 1000) { // Don't reconnect if closed normally
+          const delay = Math.min(
+            WEBSOCKET_RETRY_DELAY * Math.pow(2, retryAttemptsRef.current),
+            MAX_RETRY_DELAY
+          );
+          retryAttemptsRef.current += 1;
+          retryTimeoutRef.current = setTimeout(connect, delay);
         }
       };
 
-      ws.onerror = (err) => {
-        console.error('WebSocket error:', err);
-        setError('WebSocket connection error');
+      ws.onerror = (error) => {
+        if (!isMountedRef.current) return;
+        console.error('WebSocket error:', error);
+        setError('Connection error');
       };
-    };
 
-    // Actually start the connection attempt
-    tryMainUrl();
-  }, [
-    isAuthenticated,
-    getWebSocketUrl,
-    getAlternativeWebSocketUrl,
-    messageQueue
-  ]);
+    } catch (err) {
+      console.error('WebSocket setup error:', err);
+      setError('Setup error');
+      cleanup();
+    }
+  }, [isAuthenticated, getWebSocketUrl, messageQueue, cleanup]);
 
-  // -------------------------------------------------------
-  // 3) Delay the initial connect by 10 seconds if desired
-  // -------------------------------------------------------
-  useEffect(() => {
-    if (isAuthenticated) {
-      // Wait 10s after isAuthenticated becomes true
-      delayedStartupTimerRef.current = setTimeout(() => {
-        connect();
-      }, WS_STARTUP_DELAY);
+  // Send message or add to queue with logging
+  const sendMessage = useCallback((message) => {
+    // Log the conversation if available
+    if (message && message.conversation_id) {
+      console.log("Sending message for conversation:", message.conversation_id);
+    } else {
+      console.log("Sending message without conversation id:", message);
     }
 
-    // Cleanup if user logs out or component unmounts
-    return () => {
-      if (delayedStartupTimerRef.current) {
-        clearTimeout(delayedStartupTimerRef.current);
-        delayedStartupTimerRef.current = null;
-      }
-    };
-  }, [isAuthenticated, connect]);
-
-  // Cleanup entire hook on unmount (close WebSocket, etc.)
-  useEffect(() => {
-    return () => {
-      if (webSocketRef.current) {
-        webSocketRef.current.close();
-        webSocketRef.current = null;
-      }
-      if (reconnectTimeoutRef.current) {
-        clearTimeout(reconnectTimeoutRef.current);
-        reconnectTimeoutRef.current = null;
-      }
-      if (pingIntervalRef.current) {
-        clearInterval(pingIntervalRef.current);
-        pingIntervalRef.current = null;
-      }
-      if (delayedStartupTimerRef.current) {
-        clearTimeout(delayedStartupTimerRef.current);
-        delayedStartupTimerRef.current = null;
-      }
-    };
-  }, []);
-
-  // Send messages, or queue them if not open yet
-  const sendMessage = useCallback((message) => {
-    if (webSocketRef.current && webSocketRef.current.readyState === WebSocket.OPEN) {
+    if (webSocketRef.current?.readyState === WebSocket.OPEN) {
       webSocketRef.current.send(JSON.stringify(message));
       return true;
     } else {
-      // Queue message until connection is open
-      setMessageQueue(prev => [...prev, message]);
-
-      // Trigger a reconnect if not connected
+      setMessageQueue(prev => [...prev.slice(-MAX_QUEUE_SIZE), message]);
       if (!isConnected) {
         connect();
       }
@@ -199,36 +135,52 @@ export function useWebSocket() {
     }
   }, [isConnected, connect]);
 
-  // Listen for messages
+  // Add message listener
   const addMessageListener = useCallback((callback) => {
-    if (!webSocketRef.current) {
-      return () => {};
-    }
-
+    if (!webSocketRef.current) return () => {};
+    
     const handler = (event) => {
       try {
+        console.log("Received data:", event.data);
         const data = JSON.parse(event.data);
-        callback(data);
+        if (data.type !== 'pong') {
+          callback(data);
+        }
       } catch (err) {
-        console.error('Failed to parse incoming message', err);
+        console.error('Message parsing error:', err);
       }
     };
-
+    
     webSocketRef.current.addEventListener('message', handler);
-
     return () => {
-      if (webSocketRef.current) {
-        webSocketRef.current.removeEventListener('message', handler);
-      }
+      webSocketRef.current?.removeEventListener('message', handler);
     };
   }, []);
 
-  // Return needed things from your hook
+  // Main effect for connection management
+  useEffect(() => {
+    isMountedRef.current = true;
+    
+    // Initial connection with delay
+    const connectTimeout = setTimeout(() => {
+      if (isAuthenticated && isMountedRef.current) {
+        connect();
+      }
+    }, INITIAL_CONNECT_DELAY);
+    
+    return () => {
+      isMountedRef.current = false;
+      clearTimeout(connectTimeout);
+      cleanup();
+    };
+  }, [isAuthenticated, connect, cleanup]);
+
   return {
     isConnected,
     error,
     sendMessage,
     addMessageListener,
     reconnect: connect,
+    messageQueue,
   };
 }

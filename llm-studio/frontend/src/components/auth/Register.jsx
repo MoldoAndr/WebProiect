@@ -3,14 +3,14 @@ import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 import { toast } from "react-toastify";
-import { FiUser, FiMail, FiLock, FiAlertCircle, FiLoader, FiCheck } from "react-icons/fi";
+import { FiUser, FiMail, FiLock, FiAlertCircle, FiLoader } from "react-icons/fi";
 import "./Register.css";
 
 const Register = () => {
   const [formData, setFormData] = useState({
     username: "",
     email: "",
-    full_name: "",
+    role: "user", // default role set to "user"
     password: "",
     confirmPassword: "",
   });
@@ -228,88 +228,74 @@ const Register = () => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
 
-    // Clear error for this field when user types
+    // Clear error for this field when user types or selects
     if (errors[name]) {
       setErrors({ ...errors, [name]: null });
     }
 
     // Calculate password strength if password field changes
-    if (name === 'password') {
+    if (name === "password") {
       calculatePasswordStrength(value);
     }
   };
 
   const calculatePasswordStrength = (password) => {
-    // Initialize strength
     let strength = 0;
-
-    // If password is 6+ chars, add points
     if (password.length >= 6) strength += 1;
-    
-    // If password is 8+ chars, add more points
     if (password.length >= 8) strength += 1;
-
-    // If password contains lowercase letters, add points
     if (/[a-z]/.test(password)) strength += 1;
-    
-    // If password contains uppercase letters, add points
     if (/[A-Z]/.test(password)) strength += 1;
-    
-    // If password contains numbers, add points
     if (/[0-9]/.test(password)) strength += 1;
-    
-    // If password contains special chars, add points
     if (/[^a-zA-Z0-9]/.test(password)) strength += 1;
 
-    // Calculate percentage (max 6 points)
+    // Cap the strength at 5 (for UI purposes)
     const strengthPercentage = Math.min(5, strength);
     setPasswordStrength(strengthPercentage);
   };
 
   const getStrengthClass = () => {
-    if (passwordStrength <= 1) return 'password-strength-weak';
-    if (passwordStrength <= 3) return 'password-strength-medium';
-    return 'password-strength-strong';
+    if (passwordStrength <= 1) return "password-strength-weak";
+    if (passwordStrength <= 3) return "password-strength-medium";
+    return "password-strength-strong";
   };
 
   const getStrengthText = () => {
-    if (passwordStrength <= 1) return 'Weak';
-    if (passwordStrength <= 3) return 'Medium';
-    return 'Strong';
+    if (passwordStrength <= 1) return "Weak";
+    if (passwordStrength <= 3) return "Medium";
+    return "Strong";
   };
 
   const validateForm = () => {
     const newErrors = {};
 
-    // Username validation
     if (!formData.username.trim()) {
       newErrors.username = "Username is required";
     } else if (formData.username.length < 3) {
       newErrors.username = "Username must be at least 3 characters";
     }
 
-    // Email validation
     if (!formData.email.trim()) {
       newErrors.email = "Email is required";
     } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
       newErrors.email = "Email address is invalid";
     }
 
-    // Password validation
+    if (!formData.role) {
+      newErrors.role = "Role is required";
+    }
+
     if (!formData.password) {
       newErrors.password = "Password is required";
     } else if (formData.password.length < 6) {
       newErrors.password = "Password must be at least 6 characters";
     }
 
-    // Confirm password validation
     if (!formData.confirmPassword) {
       newErrors.confirmPassword = "Please confirm your password";
     } else if (formData.password !== formData.confirmPassword) {
       newErrors.confirmPassword = "Passwords do not match";
     }
 
-    // Terms acceptance validation
     if (!termsAccepted) {
       newErrors.terms = "You must accept the Terms of Service and Privacy Policy";
     }
@@ -320,21 +306,16 @@ const Register = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!validateForm()) {
-      return;
-    }
+    if (!validateForm()) return;
 
     setIsLoading(true);
     try {
-      const { username, email, full_name, password } = formData;
-      await register({ username, email, full_name, password });
-      
+      const { username, email, role, password } = formData;
+      await register({ username, email, role, password });
       toast.success("Registration successful! You can now login.");
       navigate("/login");
     } catch (error) {
       console.error("Registration error:", error);
-      
-      // Show the error message from the API if available
       if (error.response?.data?.detail) {
         toast.error(error.response.data.detail);
         setErrors({ ...errors, general: error.response.data.detail });
@@ -350,41 +331,16 @@ const Register = () => {
   return (
     <div className="register-container">
       {/* Particle network animation background */}
-      <div
-        className="particle-network-animation"
-        ref={particleContainerRef}
-      ></div>
+      <div className="particle-network-animation" ref={particleContainerRef}></div>
 
       <div className="register-card">
         <div className="glass-effect"></div>
         <div className="register-header">
           <div className="register-logo">
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                d="M12 2L2 7L12 12L22 7L12 2Z"
-                stroke="#4F5E99"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-              <path
-                d="M2 17L12 22L22 17"
-                stroke="#4F5E99"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-              <path
-                d="M2 12L12 17L22 12"
-                stroke="#4F5E99"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="#4F5E99" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M2 17L12 22L22 17" stroke="#4F5E99" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M2 12L12 17L22 12" stroke="#4F5E99" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </div>
           <h1 className="register-title">LLM Studio</h1>
@@ -400,9 +356,7 @@ const Register = () => {
           )}
 
           <div className="form-group">
-            <label htmlFor="username" className="form-label">
-              Username
-            </label>
+            <label htmlFor="username" className="form-label">Username</label>
             <input
               id="username"
               name="username"
@@ -415,15 +369,11 @@ const Register = () => {
               placeholder="Choose a username"
               disabled={isLoading}
             />
-            {errors.username && (
-              <p className="error-message">{errors.username}</p>
-            )}
+            {errors.username && <p className="error-message">{errors.username}</p>}
           </div>
 
           <div className="form-group">
-            <label htmlFor="email" className="form-label">
-              Email
-            </label>
+            <label htmlFor="email" className="form-label">Email</label>
             <input
               id="email"
               name="email"
@@ -440,26 +390,24 @@ const Register = () => {
           </div>
 
           <div className="form-group">
-            <label htmlFor="full_name" className="form-label">
-              Full Name (Optional)
-            </label>
-            <input
-              id="full_name"
-              name="full_name"
-              type="text"
-              autoComplete="name"
-              value={formData.full_name}
+            <label htmlFor="role" className="form-label">Role</label>
+            <select
+              id="role"
+              name="role"
+              value={formData.role}
               onChange={handleChange}
               className="form-input"
-              placeholder="Enter your full name"
               disabled={isLoading}
-            />
+            >
+              <option value="user">User</option>
+              <option value="admin">Admin</option>
+              <option value="technician">Technician</option>
+            </select>
+            {errors.role && <p className="error-message">{errors.role}</p>}
           </div>
 
           <div className="form-group">
-            <label htmlFor="password" className="form-label">
-              Password
-            </label>
+            <label htmlFor="password" className="form-label">Password</label>
             <input
               id="password"
               name="password"
@@ -480,15 +428,11 @@ const Register = () => {
                 <span className="password-strength-text">{getStrengthText()}</span>
               </div>
             )}
-            {errors.password && (
-              <p className="error-message">{errors.password}</p>
-            )}
+            {errors.password && <p className="error-message">{errors.password}</p>}
           </div>
 
           <div className="form-group">
-            <label htmlFor="confirmPassword" className="form-label">
-              Confirm Password
-            </label>
+            <label htmlFor="confirmPassword" className="form-label">Confirm Password</label>
             <input
               id="confirmPassword"
               name="confirmPassword"
@@ -497,15 +441,11 @@ const Register = () => {
               required
               value={formData.confirmPassword}
               onChange={handleChange}
-              className={`form-input ${
-                errors.confirmPassword ? "input-error" : ""
-              }`}
+              className={`form-input ${errors.confirmPassword ? "input-error" : ""}`}
               placeholder="Confirm your password"
               disabled={isLoading}
             />
-            {errors.confirmPassword && (
-              <p className="error-message">{errors.confirmPassword}</p>
-            )}
+            {errors.confirmPassword && <p className="error-message">{errors.confirmPassword}</p>}
           </div>
 
           <div className="form-terms">
@@ -520,19 +460,10 @@ const Register = () => {
                 disabled={isLoading}
               />
               <label htmlFor="terms">
-                I agree to the{" "}
-                <Link to="/terms" className="terms-link">
-                  Terms of Service
-                </Link>{" "}
-                and{" "}
-                <Link to="/privacy" className="terms-link">
-                  Privacy Policy
-                </Link>
+                I agree to the <Link to="/terms" className="terms-link">Terms of Service</Link> and <Link to="/privacy" className="terms-link">Privacy Policy</Link>
               </label>
             </div>
-            {errors.terms && (
-              <p className="error-message">{errors.terms}</p>
-            )}
+            {errors.terms && <p className="error-message">{errors.terms}</p>}
           </div>
 
           <button
@@ -546,7 +477,7 @@ const Register = () => {
                 Creating account...
               </>
             ) : (
-              'Create Account'
+              "Create Account"
             )}
           </button>
         </form>

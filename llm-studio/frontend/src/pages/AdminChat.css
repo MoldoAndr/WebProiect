@@ -266,7 +266,8 @@
   background-color: var(--background-dark);
   position: relative;
   overflow: hidden;
-  margin-left: 5px;
+  margin: 25px;
+  border-radius:20px;
 }
 
 .admin-chat-header {

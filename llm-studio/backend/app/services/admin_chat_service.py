@@ -1,4 +1,3 @@
-# app/services/admin_chat_service.py
 from typing import Optional, List
 from datetime import datetime
 from bson import ObjectId
@@ -17,15 +16,12 @@ async def get_user_tickets(user_id: str) -> List[Ticket]:
     """
     db = await get_database()
     
-    # Get tickets
     cursor = db.tickets.find({"user_id": user_id}).sort("updated_at", -1)
     tickets = []
     
     async for ticket_data in cursor:
-        # Convert ObjectId to str
         ticket_data["id"] = str(ticket_data.pop("_id"))
         
-        # Get messages for this ticket
         messages_cursor = db.admin_messages.find({"ticket_id": ticket_data["id"]}).sort("created_at", 1)
         messages = []
         
@@ -50,20 +46,16 @@ async def get_admin_tickets(status: Optional[TicketStatus] = None) -> List[Ticke
     """
     db = await get_database()
     
-    # Build query
     query = {}
     if status:
         query["status"] = status.value
     
-    # Get tickets
     cursor = db.tickets.find(query).sort("updated_at", -1)
     tickets = []
     
     async for ticket_data in cursor:
-        # Convert ObjectId to str
         ticket_data["id"] = str(ticket_data.pop("_id"))
         
-        # Get messages for this ticket
         messages_cursor = db.admin_messages.find({"ticket_id": ticket_data["id"]}).sort("created_at", 1)
         messages = []
         
@@ -92,10 +84,8 @@ async def get_ticket(ticket_id: str) -> Optional[Ticket]:
     if not ticket_data:
         return None
     
-    # Convert ObjectId to str
     ticket_data["id"] = str(ticket_data.pop("_id"))
     
-    # Get messages for this ticket
     messages_cursor = db.admin_messages.find({"ticket_id": ticket_id}).sort("created_at", 1)
     messages = []
     
@@ -120,7 +110,6 @@ async def create_ticket(user_id: str, ticket_data: TicketCreate, initial_message
     """
     db = await get_database()
     
-    # Create ticket
     now = datetime.utcnow()
     new_ticket = {
         "user_id": user_id,
@@ -133,7 +122,6 @@ async def create_ticket(user_id: str, ticket_data: TicketCreate, initial_message
     result = await db.tickets.insert_one(new_ticket)
     ticket_id = str(result.inserted_id)
     
-    # Add initial message if provided
     if initial_message:
         await add_message(
             ticket_id=ticket_id,
@@ -142,7 +130,6 @@ async def create_ticket(user_id: str, ticket_data: TicketCreate, initial_message
             is_admin=False
         )
     
-    # Return the created ticket
     return await get_ticket(ticket_id)
 
 async def update_ticket(ticket_id: str, ticket_data: TicketUpdate) -> Optional[Ticket]:
@@ -158,17 +145,14 @@ async def update_ticket(ticket_id: str, ticket_data: TicketUpdate) -> Optional[T
     """
     db = await get_database()
     
-    # Prepare update data
     update_data = {}
     if ticket_data.title is not None:
         update_data["title"] = ticket_data.title
     if ticket_data.status is not None:
         update_data["status"] = ticket_data.status.value
     
-    # Update timestamp
     update_data["updated_at"] = datetime.utcnow()
     
-    # Update ticket
     result = await db.tickets.update_one(
         {"_id": ObjectId(ticket_id)},
         {"$set": update_data}
@@ -177,7 +161,6 @@ async def update_ticket(ticket_id: str, ticket_data: TicketUpdate) -> Optional[T
     if result.modified_count == 0:
         return None
     
-    # Return the updated ticket
     return await get_ticket(ticket_id)
 
 async def add_message(ticket_id: str, user_id: str, message_data: MessageCreate, is_admin: bool = False, admin_id: Optional[str] = None, admin_name: Optional[str] = None) -> Message:
@@ -197,12 +180,10 @@ async def add_message(ticket_id: str, user_id: str, message_data: MessageCreate,
     """
     db = await get_database()
     
-    # Verify the ticket exists
     ticket = await get_ticket(ticket_id)
     if not ticket:
         raise ValueError(f"Ticket with ID {ticket_id} not found")
     
-    # Create message
     now = datetime.utcnow()
     new_message = {
         "ticket_id": ticket_id,
@@ -212,7 +193,6 @@ async def add_message(ticket_id: str, user_id: str, message_data: MessageCreate,
         "created_at": now
     }
     
-    # Add admin info if message is from an admin
     if is_admin:
         new_message["admin_id"] = admin_id
         new_message["admin_name"] = admin_name
@@ -220,20 +200,17 @@ async def add_message(ticket_id: str, user_id: str, message_data: MessageCreate,
     result = await db.admin_messages.insert_one(new_message)
     message_id = str(result.inserted_id)
     
-    # Update the ticket's updated_at timestamp
     await db.tickets.update_one(
         {"_id": ObjectId(ticket_id)},
         {"$set": {"updated_at": now}}
     )
     
-    # If this is the first message on an open ticket, update the status to in_progress if from admin
     if is_admin and ticket.status == TicketStatus.OPEN and len(ticket.messages) <= 1:
         await update_ticket(
             ticket_id=ticket_id,
             ticket_data=TicketUpdate(status=TicketStatus.IN_PROGRESS)
         )
     
-    # Return the created message
     new_message["id"] = message_id
     return Message(**new_message)
 

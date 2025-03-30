@@ -80,37 +80,36 @@ const Dashboard = () => {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
       });
-
+  
       if (!response.ok) {
         throw new Error(`Failed to load conversations: ${response.statusText}`);
       }
-
+  
       const data = await response.json();
-      console.log("Loaded conversations:", data);
+      console.log("Loaded conversations with messages:", data);
       setConversations(data);
-
-      // Update user stats
-      setUserStats({
-        ...userStats,
-        totalConversations: data.length,
-        totalMessages: data.reduce(
-          (acc, conv) => acc + (conv.messages?.length || 0),
-          0
-        ),
-      });
+  
+      // Update user stats based on conversations and their messages
+      const totalConversations = data.length;
+      const totalMessages = data.reduce(
+        (acc, conv) => acc + (conv.messages ? conv.messages.length : 0),
+        0
+      );
+      setUserStats((prevStats) => ({
+        ...prevStats,
+        totalConversations,
+        totalMessages,
+      }));
     } catch (error) {
       console.error("Error loading conversations:", error);
-      // Use mock data for development
       console.warn("Using mock conversation data");
-      // You might want to keep your mock data here for development
+      // Optionally, use fallback data here for development
     } finally {
       setIsLoadingConversations(false);
     }
   };
 
   const handleCreateNewConversation = async () => {
-    console.log("Selected Conversation ID:", selectedConversationId);
-    console.log("Active Conversation:", activeConversation);
     if (!selectedLLM) {
       toast.warning("Please select an LLM model first");
       return;
@@ -118,22 +117,18 @@ const Dashboard = () => {
 
     setIsLoading(true);
     try {
-      const username = user?.username || "user";
-      const llmId = selectedLLM.id;
-      const uniqueHex = Math.random().toString(16).substring(2, 10);
-      const conversationId = `${username}_${llmId}_${uniqueHex}`;
-
       const newConversation = await llmApiService.createConversation(
-        selectedLLM.id,
-        conversationId
+        selectedLLM.id
       );
 
       if (wsConnected) {
-        await wsCreateConversation(selectedLLM.id, newConversation.id);
+        wsCreateConversation(selectedLLM.id, newConversation.id);
       }
 
+      // Option 1: Update local state immediately.
       setConversations([newConversation, ...conversations]);
       setSelectedConversationId(newConversation.id);
+
       toast.success("New conversation created");
     } catch (error) {
       console.error("Error creating conversation:", error);
@@ -143,85 +138,83 @@ const Dashboard = () => {
     }
   };
 
-  const handleSendMessage = async (message) => {
+  const handleSendMessage = async (message, useRestApi = false) => {
     if (!selectedLLM) {
       toast.error("Please select an LLM model first");
       return;
     }
-
+  
     if (!activeConversation) {
       toast.error("No active conversation");
       return;
     }
-
+  
+    console.log("Active conversation id:", activeConversation.id);
+  
     const userMessage = {
-      id: Date.now(), // Temporary ID
+      id: Date.now(), // Temporary ID for optimistic update
       role: "user",
       content: message,
       created_at: new Date().toISOString(),
     };
-
-    // Optimistically update UI
-    const updatedConversations = conversations.map((conv) => {
-      if (conv.id === activeConversation.id) {
-        return {
-          ...conv,
-          messages: [...conv.messages, userMessage],
-          updated_at: new Date().toISOString(),
-        };
-      }
-      return conv;
-    });
-
-    setConversations(updatedConversations);
-
+  
+    // Optimistically update UI using a functional update to ensure we have the latest state.
+    setConversations((prevConversations) =>
+      prevConversations.map((conv) => {
+        if (conv.id === activeConversation.id + 1) {
+          return {
+            ...conv,
+            messages: [...(conv.messages || []), userMessage],
+            updated_at: new Date().toISOString(),
+          };
+        }
+        return conv;
+      })
+    );
+  
     try {
-      // Use WebSocket if connected, otherwise use REST API
-      if (wsConnected) {
-        await sendPrompt(activeConversation.id, message);
-        return Promise.resolve();
-      } else {
-        // Fallback to REST API
-        const response = await llmApiService.sendMessage(
-          activeConversation.id,
-          message
-        );
-
-        // Update with the actual response
+      if (useRestApi || !wsConnected) {
+        // Use REST API to send the message
+        const response = await llmApiService.sendMessage(activeConversation.id, message);
+  
         const assistantMessage = {
-          id: Date.now() + 1, // Temporary ID
+          id: Date.now() + 1, // Temporary ID; note this value should not affect the conversation id
           role: "assistant",
           content: response.response,
           created_at: new Date().toISOString(),
         };
-
-        setConversations(
-          conversations.map((conv) => {
+  
+        // Update conversation using functional update.
+        setConversations((prevConversations) =>
+          prevConversations.map((conv) => {
             if (conv.id === activeConversation.id) {
+              // If no messages existed before, use part of the user message as title.
               const newTitle =
-                conv.messages.length === 0
-                  ? message.substring(0, 30) +
-                    (message.length > 30 ? "..." : "")
+                (conv.messages && conv.messages.length === 0)
+                  ? message.substring(0, 30) + (message.length > 30 ? "..." : "")
                   : conv.title;
-
               return {
                 ...conv,
                 title: newTitle,
-                messages: [...conv.messages, userMessage, assistantMessage],
+                messages: [...(conv.messages || []), assistantMessage],
                 updated_at: new Date().toISOString(),
               };
             }
             return conv;
           })
         );
-
+  
         // Update user stats
-        setUserStats({
-          ...userStats,
-          totalMessages: userStats.totalMessages + 2,
-        });
-
-        return Promise.resolve();
+        setUserStats((prevStats) => ({
+          ...prevStats,
+          totalMessages: prevStats.totalMessages + 2,
+        }));
+  
+        return;
+      } else {
+        // Use WebSocket streaming – ensure we use the correct activeConversation.id here
+        await sendPrompt(activeConversation.id, message);
+        return;
       }
     } catch (error) {
       console.error("Error getting LLM response:", error);
@@ -229,6 +222,7 @@ const Dashboard = () => {
       return Promise.reject(error);
     }
   };
+  
 
   const toggleSidebar = () => {
     setSidebarOpen(!sidebarOpen);

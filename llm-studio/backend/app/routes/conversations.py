@@ -1,12 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException, status, WebSocket, WebSocketDisconnect
+# app/routes/conversations.py
+from fastapi import APIRouter, Depends, HTTPException, status
 from typing import List, Optional
 from pydantic import BaseModel
 
 from app.models.user import User
-from app.models.conversation import Conversation, ConversationCreate, ConversationUpdate
-from app.models.prompt import PromptRequest, PromptResponse
-from app.core.security import get_current_user, get_current_user_ws
-from app.core.websocket import connection_manager
+from app.models.conversation import Conversation, ConversationCreate, ConversationUpdate, PromptResponse
+from app.core.security import get_current_user
 from app.services.conversation_service import (
     get_conversation,
     get_user_conversations,

@@ -14,20 +14,29 @@ logger = logging.getLogger(__name__)
 async def get_llm_by_id(llm_id: str) -> Optional[LLM]:
     """Get LLM by ID"""
     db = await get_database()
-    llm_data = await db.llms.find_one({"_id": ObjectId(llm_id)})
+    
+    try:
+        llm_data = await db.llms.find_one({"_id": llm_id})
+        
+        if not llm_data and len(llm_id) == 24 and all(c in '0123456789abcdef' for c in llm_id.lower()):
+            llm_data = await db.llms.find_one({"_id": ObjectId(llm_id)})
+    except Exception as e:
+        logger.error(f"Error retrieving LLM: {e}")
+        return None
     
     if not llm_data:
         return None
     
-    # Convert ObjectId to str
-    llm_data["id"] = str(llm_data.pop("_id"))
+    if isinstance(llm_data.get("_id"), ObjectId):
+        llm_data["id"] = str(llm_data.pop("_id"))
+    else:
+        llm_data["id"] = llm_data.pop("_id")
+    
     return LLM(**llm_data)
-
 async def get_all_llms(active_only: bool = False) -> List[LLM]:
     """Get all LLMs"""
     db = await get_database()
     
-    # Filter by status if requested
     filter_query = {"status": "active"} if active_only else {}
     
     cursor = db.llms.find(filter_query)
@@ -43,12 +52,10 @@ async def create_llm(llm_data: LLMCreate) -> LLM:
     """Create a new LLM"""
     db = await get_database()
     
-    # Check if LLM with same name exists
     existing = await db.llms.find_one({"name": llm_data.name})
     if existing:
         raise ValueError(f"LLM with name '{llm_data.name}' already exists")
     
-    # Create LLM document
     now = datetime.utcnow()
     llm_doc = {
         **llm_data.dict(),
@@ -57,11 +64,9 @@ async def create_llm(llm_data: LLMCreate) -> LLM:
         "updated_at": now
     }
     
-    # Insert into database
     result = await db.llms.insert_one(llm_doc)
     llm_id = str(result.inserted_id)
     
-    # Return created LLM
     llm_doc["id"] = llm_id
     return LLM(**llm_doc)
 
@@ -69,23 +74,19 @@ async def update_llm(llm_id: str, llm_data: LLMUpdate) -> Optional[LLM]:
     """Update LLM information"""
     db = await get_database()
     
-    # Check if LLM exists
     existing = await get_llm_by_id(llm_id)
     if not existing:
         return None
     
-    # Prepare update data
     update_data = {k: v for k, v in llm_data.dict().items() if v is not None}
     update_data["updated_at"] = datetime.utcnow()
     
-    # Update LLM
     if update_data:
         await db.llms.update_one(
             {"_id": ObjectId(llm_id)},
             {"$set": update_data}
         )
     
-    # Return updated LLM
     return await get_llm_by_id(llm_id)
 
 async def delete_llm(llm_id: str) -> bool:
@@ -99,23 +100,18 @@ async def call_llm_api(llm: LLM, prompt: str, system_prompt: Optional[str] = Non
     start_time = time.time()
     
     try:
-        # Prepare request data
         request_data = {
             "prompt": prompt,
             "system_prompt": system_prompt or settings.DEFAULT_SYSTEM_PROMPT
         }
         
-        # Add LLM parameters if available
         if llm.parameters:
             request_data.update(llm.parameters)
         
-        # In development mode, return mock response
         if not settings.PRODUCTION:
-            # Simulate API delay
             await asyncio.sleep(1)
             return f"This is a simulated response from {llm.name}. In a real application, this would be an actual response from the LLM API based on your prompt: '{prompt[:50]}...'"
         
-        # Make actual API call
         async with httpx.AsyncClient(timeout=60.0) as client:
             response = await client.post(
                 llm.api_endpoint,
@@ -125,8 +121,6 @@ async def call_llm_api(llm: LLM, prompt: str, system_prompt: Optional[str] = Non
             response.raise_for_status()
             data = response.json()
             
-            # Extract response text (format depends on the LLM API)
-            # This is a simplified implementation - adjust based on your LLM API response format
             return data.get("response", data.get("text", data.get("output", "")))
             
     except Exception as e:

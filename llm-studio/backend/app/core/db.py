@@ -16,7 +16,6 @@ async def connect_to_mongo():
     logger.info("Connecting to MongoDB...")
     
     try:
-        # Prepare connection options with proper TLS/SSL settings
         conn_options = {
             "serverSelectionTimeoutMS": 5000,
             "connectTimeoutMS": 10000,
@@ -24,18 +23,15 @@ async def connect_to_mongo():
             "retryReads": True
         }
         
-        # Configure TLS/SSL if running in production
         if settings.PRODUCTION:
             conn_options.update({
                 "ssl": True,
                 "ssl_cert_reqs": ssl.CERT_REQUIRED
             })
         
-        # Connect to MongoDB with the secure connection string
         db.client = AsyncIOMotorClient(settings.MONGO_URI, **conn_options)
         db.db = db.client.get_database()
         
-        # Simple connection test
         await db.client.admin.command('ping')
         logger.info("Connected to MongoDB successfully")
     except Exception as e:

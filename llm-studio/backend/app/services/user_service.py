@@ -13,7 +13,6 @@ async def get_user_by_id(user_id: str) -> Optional[User]:
     if not user_data:
         return None
     
-    # Convert ObjectId to str
     user_data["id"] = str(user_data.pop("_id"))
     return User(**user_data)
 
@@ -25,7 +24,6 @@ async def get_user_by_username(username: str) -> Optional[User]:
     if not user_data:
         return None
     
-    # Convert ObjectId to str
     user_data["id"] = str(user_data.pop("_id"))
     return User(**user_data)
 
@@ -33,27 +31,22 @@ async def create_user(user_data: UserCreate) -> User:
     """Create a new user"""
     db = await get_database()
     
-    # Hash password
     hashed_password = get_password_hash(user_data.password)
-    
-    # Create user document
     now = datetime.utcnow()
     user_doc = {
         "username": user_data.username,
         "email": user_data.email,
-        "full_name": user_data.full_name,
         "hashed_password": hashed_password,
-        "role": "user",  # Default role
+        "full_name": "",
+        "role": user_data.role,
         "is_active": True,
         "created_at": now,
         "updated_at": now
     }
     
-    # Insert into database
     result = await db.users.insert_one(user_doc)
     user_id = str(result.inserted_id)
     
-    # Return created user
     user_doc["id"] = user_id
     return User(**user_doc)
 
@@ -61,24 +54,19 @@ async def update_user(user_id: str, user_data: UserUpdate) -> Optional[User]:
     """Update user information"""
     db = await get_database()
     
-    # Prepare update data
     update_data = {k: v for k, v in user_data.dict().items() if v is not None}
     
-    # Hash password if provided
     if "password" in update_data:
         update_data["hashed_password"] = get_password_hash(update_data.pop("password"))
     
-    # Update timestamp
     update_data["updated_at"] = datetime.utcnow()
     
-    # Update user
     if update_data:
         await db.users.update_one(
             {"_id": ObjectId(user_id)},
             {"$set": update_data}
         )
     
-    # Return updated user
     return await get_user_by_id(user_id)
 
 async def get_all_users(skip: int = 0, limit: int = 100) -> List[User]:
@@ -121,6 +109,5 @@ async def get_user_by_email(email: str) -> Optional[User]:
     if not user_data:
         return None
 
-    # Convert ObjectId to str
     user_data["id"] = str(user_data.pop("_id"))
     return User(**user_data)

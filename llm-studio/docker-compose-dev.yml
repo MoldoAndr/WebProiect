@@ -1,0 +1,120 @@
+version: "3.8"
+
+services:
+  mongodb:
+    image: mongo:latest
+    container_name: llm-studio-mongodb
+    restart: unless-stopped
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=${MONGO_USER:-llmstudio}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_PASSWORD:-password}
+      - MONGO_INITDB_DATABASE=llm_studio
+    volumes:
+      - mongodb-data:/data/db
+      - ./mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+    ports:
+      - "27017:27017"
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')", "-u", "${MONGO_USER:-llmstudio}", "-p", "${MONGO_PASSWORD:-password}", "--authenticationDatabase", "admin"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - llm-studio-network
+
+  llm-api:
+    hostname: llm-api
+    container_name: llm-studio-llm-api
+    build:
+      context: ./LLMManager/LLMManager
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./LLMManager/LLMManager/models:/app/models
+      - ./LLMManager/data:/app/data
+    environment:
+      - MODEL_DIR=/app/models
+      - DATA_DIR=/app/data
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped
+    shm_size: 1gb
+    deploy:
+      resources:
+        limits:
+          memory: 3G
+        reservations:
+          memory: 1G
+    command: >
+      bash -c "
+        python app.py & 
+        sleep 6 && 
+        ./initialize_models.sh && 
+        wait
+      "
+    networks:
+      - llm-studio-network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: llm-studio-backend
+    restart: unless-stopped
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    environment:
+      - SECRET_KEY=${SECRET_KEY:-your_jwt_secret_key_change_in_production}
+      - MONGO_USER=${MONGO_USER:-llmstudio}
+      - MONGO_PASSWORD=${MONGO_PASSWORD:-password}
+      - MONGO_HOST=mongodb
+      - MONGO_DB=llm_studio
+      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:3000}
+      - LOG_LEVEL=info
+    volumes:
+      - ./backend:/app
+    ports:
+      - "8000:8000"
+    networks:
+      - llm-studio-network
+
+  frontend:
+    build:
+      context: ./frontend
+      # Use a production Dockerfile that builds the static assets
+      dockerfile: Dockerfile.production
+    container_name: llm-studio-frontend
+    restart: unless-stopped
+    environment:
+      - REACT_APP_API_URL=http://localhost:8000/api
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    networks:
+      - llm-studio-network
+    # Note: No volume mapping here so that the production build remains intact
+
+  nginx:
+    image: nginx:alpine
+    container_name: llm-studio-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - llm-studio-network
+
+networks:
+  llm-studio-network:
+    driver: bridge
+
+volumes:
+  mongodb-data:
+
