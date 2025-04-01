@@ -484,11 +484,8 @@ body {
   border-bottom: 1px solid var(--border-color);
   background-color: rgba(26, 32, 44, 0.4);
   overflow-x: hidden;
-  /* Prevent horizontal overflow */
   overflow-y: auto;
-  /* Allow vertical overflow */
-  max-height: 40vh;
-  /* Limit height to enable scrolling */
+  max-height: 30vh;
 }
 .sidebar-section-title {
   overflow-x: auto;           /* or scroll */
@@ -887,13 +884,14 @@ body {
 
 .llm-info-value {
   align-items: center;
-  font-size: 15px;
+  font-size: 13px;
   font-family: 'Algerian';
   font-weight: bold;
+  white-space: pre-line;
 }
 
 .llm-info-item {
-  border-radius: 10px;
+  border-radius: 2px;
   background-color: var(--accent-blue);
   margin-left: 2px;
   margin-right: 2px;
@@ -903,13 +901,13 @@ body {
 }
 
 .llm-info-label {
-  font-size: 13px;
+  font-size: 7px;
 }
 
 .llm-info {
   margin-top: 10px;
   display: flex;
-  overflow-x: scroll;
+  overflow: hidden;
 }
 
 .avatar {
@@ -1024,11 +1022,8 @@ body {
   grid-template-columns: repeat(4, 1fr);
   gap: 8px;
   overflow-y: auto;
-  /* Change from overflow: scroll to overflow-y: auto */
   overflow-x: hidden;
-  /* Prevent horizontal overflow */
   padding-right: 5px;
-  /* Add right padding for scrollbar */
 }
 
 .stats-item {

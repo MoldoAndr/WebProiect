@@ -1,0 +1,76 @@
+/* src/components/dashboard/LLMSelector.module.css */
+
+/* ... (keep other styles: .llmSelectorContainer, .selectWrapper, .selectElement, etc.) ... */
+
+/* --- LLM Info Boxes --- */
+.infoContainer {
+    display: flex;
+    flex-wrap: wrap; /* Allow wrapping */
+    gap: 0.5rem; /* approx gap-2 */
+    justify-content: center; /* Add this line to center the items */
+  }
+  
+  .infoItem {
+    display: flex;
+    align-items: center;
+    background-color: rgba(49, 46, 129, 0.7);
+    color: #ffffff;
+    padding: 0.625rem;
+    border-radius: 0.375rem;
+    font-size: 0.75rem;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+    flex-grow: 0; /* Change from 1 to 0 - don't grow, just center */
+  
+    /* backdrop-filter: blur(4px); */
+    /* -webkit-backdrop-filter: blur(4px); */
+  }
+  
+  /* Media query for flex-grow is no longer needed if default is 0 */
+  /* @media (min-width: 640px) { ... } */
+  
+  .infoIcon {
+    margin-right: 0.375rem;
+    color: #818cf8;
+    flex-shrink: 0;
+    display: inline-flex;
+    vertical-align: middle;
+  }
+  
+  .infoLabel {
+    color: #d1d5db;
+    margin-right: 0.25rem;
+  }
+  
+  .infoValue {
+    font-weight: 600;
+  }
+  
+  .infoValue.mono {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  }
+  
+  .infoValueUnit {
+      margin-left: 0.125rem;
+      color: #9ca3af;
+      font-weight: normal;
+      font-size: 0.9em;
+  }
+  
+  /* ... (keep loading/error message styles) ... */
+  /* --- Loading / Error States --- */
+  .loadingMessage {
+    padding: 1rem;
+    text-align: center;
+    color: #9ca3af; /* gray-400 */
+    font-size: 0.875rem; /* text-sm */
+  }
+  
+  .errorMessage {
+    padding: 1rem;
+    text-align: center;
+    color: #f87171; /* red-400 */
+    font-size: 0.875rem; /* text-sm */
+    background-color: rgba(153, 27, 27, 0.2); /* red-900 / opacity */
+    border: 1px solid rgba(153, 27, 27, 0.4); /* Slightly darker red border */
+    border-radius: 0.5rem; /* rounded-lg */
+  }

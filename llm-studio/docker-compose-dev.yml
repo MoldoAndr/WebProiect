@@ -81,7 +81,6 @@ services:
   frontend:
     build:
       context: ./frontend
-      # Use a production Dockerfile that builds the static assets
       dockerfile: Dockerfile.production
     container_name: llm-studio-frontend
     restart: unless-stopped
@@ -93,7 +92,6 @@ services:
       - backend
     networks:
       - llm-studio-network
-    # Note: No volume mapping here so that the production build remains intact
 
   nginx:
     image: nginx:alpine

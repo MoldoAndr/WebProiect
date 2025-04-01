@@ -28,9 +28,7 @@ const LLMSelector = ({ llms, selectedLLM, onLLMSelect }) => {
         </option>
         {llms.map((llm) => (
           <option key={llm.id} value={llm.id}>
-            {/* {llm.name.split("-")[0]} -{" "} */}
-            {llm.description ||
-              (llm.provider ? `${llm.provider} model` : "AI model")}
+            {llm.id} - {llm.description ? llm.description : "AI model"}
           </option>
         ))}
       </select>
@@ -38,17 +36,15 @@ const LLMSelector = ({ llms, selectedLLM, onLLMSelect }) => {
       {selectedLLM && (
         <div className="llm-info">
           <div className="llm-info-item">
-            <FiMaximize size={14} className="mr-1 text-indigo-400" />
-            <span className="llm-info-label">Token Limit:</span>
             <span className="llm-info-value">
               {typeof selectedLLM.tokenLimit === "number"
                 ? selectedLLM.tokenLimit.toLocaleString()
-                : selectedLLM.tokenLimit || "Unknown"}
+                : selectedLLM.tokenLimit || "Unknown"}{" "}
+              tokens
             </span>
           </div>
           <div className="llm-info-item">
-            <FiDollarSign size={14} className="mr-1 text-indigo-400" />
-            <span className="llm-info-label">Cost:</span>
+            <FiDollarSign size={18} className="mr-1 text-indigo-400" />
             <span className="llm-info-value">
               {typeof selectedLLM.costPer1kTokens === "string"
                 ? selectedLLM.costPer1kTokens
@@ -58,8 +54,7 @@ const LLMSelector = ({ llms, selectedLLM, onLLMSelect }) => {
           </div>
           {selectedLLM.provider && (
             <div className="llm-info-item">
-              <FiCpu size={14} className="mr-1 text-indigo-400" />
-              <span className="llm-info-label">Provider:</span>
+              <FiCpu size={18} className="mr-1 text-indigo-400" />
               <span className="llm-info-value">{selectedLLM.provider}</span>
             </div>
           )}

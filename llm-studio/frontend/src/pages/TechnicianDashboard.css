@@ -217,7 +217,7 @@ body {
   gap: 0.5rem;
 }
 
-.action-button {
+.action-button-t {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -231,24 +231,24 @@ body {
   transition: all 0.2s ease;
 }
 
-.action-button svg {
+.action-button-t svg {
   display: block;
   width: 16px;
   height: 16px;
   color: currentColor;
 }
 
-.action-button:hover {
+.action-button-t:hover {
   transform: translateY(-1px);
 }
 
-.action-button.edit:hover {
+.action-button-t.edit:hover {
   background-color: rgba(66, 153, 225, 0.2);
   color: #63b3ed;
   border-color: rgba(66, 153, 225, 0.3);
 }
 
-.action-button.delete:hover {
+.action-button-t.delete:hover {
   background-color: rgba(245, 101, 101, 0.2);
   color: #fc8181;
   border-color: rgba(245, 101, 101, 0.3);

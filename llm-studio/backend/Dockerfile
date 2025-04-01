@@ -8,8 +8,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=off \
     PIP_DISABLE_PIP_VERSION_CHECK=on
 
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     curl \
     netcat-traditional \
@@ -22,6 +21,7 @@ RUN pip install --upgrade pip \
     && pip install -r requirements.txt \
     && pip install "uvicorn[standard]" websockets wsproto
 
+# Create an improved wait-for-it script that checks if there are extra arguments before calling exec.
 RUN echo '#!/bin/bash\n\
 set -e\n\
 host="$1"\n\
@@ -34,15 +34,20 @@ until nc -z "$host" "$port"; do\n\
   sleep 1\n\
 done\n\
 >&2 echo "$host:$port is available"\n\
-exec "$@"' > /usr/local/bin/wait-for-it \
+if [ "$#" -gt 0 ]; then\n\
+  exec "$@"\n\
+fi' > /usr/local/bin/wait-for-it \
     && chmod +x /usr/local/bin/wait-for-it
 
 COPY . /app/
 
 RUN mkdir -p /app/data /app/logs
 
+# Copy the entrypoint script and make it executable
+COPY entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
+
 EXPOSE 8000
 
-CMD ["python3", "app/scripts/sync_llms.py"]
+ENTRYPOINT ["/app/entrypoint.sh"]
 
-CMD ["wait-for-it", "mongodb", "27017", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--ws", "websockets"]

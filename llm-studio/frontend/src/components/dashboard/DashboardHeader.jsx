@@ -46,7 +46,7 @@ const DashboardHeader = ({ user }) => {
             <div className="avatar">
               <FiUser size={14} />
             </div>
-            <span className="username">{user?.name || "User"}</span>
+            <span className="username">{user?.username || "User"}</span>
           </div>
 
           <button

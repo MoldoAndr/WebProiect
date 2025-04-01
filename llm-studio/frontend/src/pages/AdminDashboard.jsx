@@ -1,12 +1,10 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import {
   FiUsers,
   FiCpu,
-  FiSettings,
   FiBarChart2,
-  FiDatabase,
   FiUser,
   FiLogOut,
   FiChevronDown,
@@ -15,235 +13,438 @@ import {
   FiPlus,
   FiSearch,
   FiRefreshCw,
+  FiLoader,
+  FiDownloadCloud, // Added icon for model source type
+  FiFileText, // Added icon for model source type
 } from "react-icons/fi";
 import { useAuth } from "../hooks/useAuth";
 import "./AdminDashboard.css";
-
-const mockUsers = [
-  {
-    id: 1,
-    username: "john_doe",
-    email: "john@example.com",
-    role: "user",
-    status: "active",
-    lastLogin: "2023-06-15T10:30:00Z",
-    conversationsCount: 24,
-  },
-  {
-    id: 2,
-    username: "jane_smith",
-    email: "jane@example.com",
-    role: "user",
-    status: "active",
-    lastLogin: "2023-06-14T08:15:00Z",
-    conversationsCount: 15,
-  },
-  {
-    id: 3,
-    username: "tech_support",
-    email: "tech@example.com",
-    role: "technician",
-    status: "active",
-    lastLogin: "2023-06-16T09:45:00Z",
-    conversationsCount: 8,
-  },
-  {
-    id: 4,
-    username: "admin_user",
-    email: "admin@example.com",
-    role: "admin",
-    status: "active",
-    lastLogin: "2023-06-16T11:20:00Z",
-    conversationsCount: 12,
-  },
-  {
-    id: 5,
-    username: "inactive_user",
-    email: "inactive@example.com",
-    role: "user",
-    status: "disabled",
-    lastLogin: "2023-05-20T15:10:00Z",
-    conversationsCount: 3,
-  },
-];
-
-const mockLLMs = [
-  {
-    id: 1,
-    name: "GPT-4",
-    provider: "OpenAI",
-    apiEndpoint: "https://api.openai.com/v1/chat/completions",
-    tokenLimit: 8000,
-    costPer1kTokens: 0.08,
-    status: "active",
-    usage: {
-      totalTokens: 1250000,
-      totalCost: 100.0,
-      activeUsers: 42,
-    },
-  },
-  {
-    id: 2,
-    name: "Claude 3",
-    provider: "Anthropic",
-    apiEndpoint: "https://api.anthropic.com/v1/complete",
-    tokenLimit: 100000,
-    costPer1kTokens: 0.07,
-    status: "active",
-    usage: {
-      totalTokens: 890000,
-      totalCost: 62.3,
-      activeUsers: 28,
-    },
-  },
-  {
-    id: 3,
-    name: "Gemini Pro",
-    provider: "Google",
-    apiEndpoint: "https://api.google.com/v1/models/gemini-pro",
-    tokenLimit: 12000,
-    costPer1kTokens: 0.06,
-    status: "active",
-    usage: {
-      totalTokens: 520000,
-      totalCost: 31.2,
-      activeUsers: 19,
-    },
-  },
-  {
-    id: 4,
-    name: "Llama 3",
-    provider: "Meta",
-    apiEndpoint: "https://api.meta.com/v1/llama3",
-    tokenLimit: 10000,
-    costPer1kTokens: 0.01,
-    status: "active",
-    usage: {
-      totalTokens: 350000,
-      totalCost: 3.5,
-      activeUsers: 15,
-    },
-  },
-  {
-    id: 5,
-    name: "Mistral Large",
-    provider: "Mistral AI",
-    apiEndpoint: "https://api.mistral.ai/v1/models/large",
-    tokenLimit: 32000,
-    costPer1kTokens: 0.05,
-    status: "maintenance",
-    usage: {
-      totalTokens: 180000,
-      totalCost: 9.0,
-      activeUsers: 8,
-    },
-  },
-];
-
-const mockSystemStats = {
-  activeUsers: 78,
-  totalConversations: 1243,
-  totalTokensUsed: 3190000,
-  totalCost: 206.0,
-  activeModels: 4,
-  systemUptime: "99.98%",
-  averageResponseTime: "1.2s",
+const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:8000";
+const API_V1_STR = "/api"; // Defined API prefix
+/**
+ * Helper function for making authenticated API calls.
+ * @param {string} url - The API endpoint path (e.g., "/users") *relative to API_V1_STR*
+ * @param {string | null} token - The JWT authentication token.
+ * @param {object} options - Fetch options (method, body, etc.)
+ * @returns {Promise<any>} - The JSON response from the API.
+ */
+const fetchApi = async (url, token, options = {}) => {
+  const headers = {
+    "Content-Type": "application/json",
+    ...options.headers,
+  };
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+  try {
+    const fullUrl = `${API_BASE_URL}${API_V1_STR}${url}`; // Construct full URL
+    // console.log(`Fetching: ${options.method || 'GET'} ${fullUrl}`); // Debugging fetch calls
+    // if (options.body) {
+    //   console.log('Fetch Body:', options.body);
+    // }
+    const response = await fetch(fullUrl, {
+      ...options,
+      headers,
+    });
+    let responseBody;
+    const contentType = response.headers.get("content-type");
+    // Handle different response types
+    if (contentType && contentType.indexOf("application/json") !== -1) {
+      if (
+        response.status === 204 ||
+        response.headers.get("content-length") === "0"
+      ) {
+        responseBody = null; // No content
+      } else {
+        responseBody = await response.json(); // Attempt to parse JSON
+      }
+    } else {
+      // Handle non-JSON responses if necessary, e.g., text
+      if (
+        response.status !== 204 &&
+        response.headers.get("content-length") !== "0"
+      ) {
+        responseBody = await response.text();
+      } else {
+        responseBody = null;
+      }
+    }
+    // Check for errors after attempting to read the body
+    if (!response.ok) {
+      let errorDetail = `HTTP error! status: ${response.status}`;
+      // If responseBody has detail (common FastAPI error format)
+      if (
+        responseBody &&
+        typeof responseBody === "object" &&
+        responseBody.detail
+      ) {
+        if (Array.isArray(responseBody.detail)) {
+          errorDetail = responseBody.detail
+            .map((err) => `${err.loc?.join(".") || "error"}: ${err.msg}`)
+            .join("; ");
+        } else {
+          errorDetail = responseBody.detail;
+        }
+      } else if (typeof responseBody === "string" && responseBody.length > 0) {
+        // Use text response as detail if available
+        errorDetail = responseBody;
+      }
+      console.error("API Error Response:", response.status, responseBody);
+      throw new Error(errorDetail);
+    }
+    // console.log(`Fetch Success: ${options.method || 'GET'} ${fullUrl}`, responseBody); // Debugging success
+    return responseBody; // Return parsed body or null
+  } catch (error) {
+    // Log and re-throw for component-level handling
+    console.error(
+      `Fetch API Error (${options.method || "GET"} ${url}):`,
+      error
+    );
+    // Make sure error message is useful
+    throw new Error(error.message || "An unknown API error occurred.");
+  }
 };
-
 const AdminDashboard = () => {
   const [activeSection, setActiveSection] = useState("overview");
-  const [users, setUsers] = useState(mockUsers);
-  const [llms, setLlms] = useState(mockLLMs);
-  const [systemStats, setSystemStats] = useState(mockSystemStats);
-  const [isLoading, setIsLoading] = useState(false);
+  const [users, setUsers] = useState([]);
+  const [llms, setLlms] = useState([]); // State for LLM models
+  const [isLoading, setIsLoading] = useState({
+    users: false,
+    llms: false,
+    overview: false, // Might be needed if overview involves API calls later
+  });
+  const [isMutating, setIsMutating] = useState(false); // For Add/Delete operations
   const [showUserModal, setShowUserModal] = useState(false);
-  const [showLLMModal, setShowLLMModal] = useState(false);
-  const [currentUser, setCurrentUser] = useState(null);
-  const [currentLLM, setCurrentLLM] = useState(null);
+  const [showLLMModal, setShowLLMModal] = useState(false); // Modal for adding LLMs
+  const [currentUser, setCurrentUser] = useState(null); // For editing users
+  // Removed currentLLM state as editing isn't supported by backend API
   const [searchTerm, setSearchTerm] = useState("");
-
-  const { user, logout } = useAuth();
+  const { user, logout, loading: authLoading } = useAuth();
   const navigate = useNavigate();
-
+  const authToken = user?.token || localStorage.getItem("token");
+  // --- Data Loading Callbacks ---
+  const loadUsers = useCallback(async () => {
+    if (!authToken) return;
+    setIsLoading((prev) => ({ ...prev, users: true }));
+    try {
+      const fetchedUsers = await fetchApi("/users", authToken);
+      setUsers(fetchedUsers.map((u) => ({ ...u, id: u.id || u._id }))); // Ensure 'id' field
+    } catch (error) {
+      toast.error(`Failed to load users: ${error.message}`);
+      setUsers([]); // Clear on error
+    } finally {
+      setIsLoading((prev) => ({ ...prev, users: false }));
+    }
+  }, [authToken]);
+  const loadLLMs = useCallback(async () => {
+    // Comments about auth remain relevant for Add/Delete
+    setIsLoading((prev) => ({ ...prev, llms: true }));
+    try {
+      // Fetches from GET /llm-manager/models
+      const fetchedLLMsData = await fetchApi("/llm-manager/models", null); // No token needed
+      // --- Data Transformation ---
+      let processedLlms = []; // Initialize empty array for state
+      // Check if the fetched data is a non-null object (and not an array)
+      if (
+        fetchedLLMsData &&
+        typeof fetchedLLMsData === "object" &&
+        !Array.isArray(fetchedLLMsData)
+      ) {
+        // Use Object.values() to get an array of the model detail objects
+        // Then map over this array to create the structure needed for the state
+        processedLlms = Object.values(fetchedLLMsData).map((llmDetails) => ({
+          // Extract fields from the value object (llmDetails)
+          id: llmDetails.id, // The ID is present inside the value object
+          model_id: llmDetails.id, // Keep consistent if needed elsewhere
+          type: llmDetails.type || "unknown",
+          path: llmDetails.model_path || "N/A", // Map model_path from backend
+          context_window: llmDetails.context_window,
+          n_threads: llmDetails.n_threads,
+          n_gpu_layers: llmDetails.n_gpu_layers,
+          temperature: llmDetails.temperature,
+          // Include other potentially useful fields from the response
+          backend: llmDetails.backend,
+          device_info: llmDetails.device_info,
+          size_mb: llmDetails.size_mb,
+        }));
+        setLlms(processedLlms); // Update the state with the processed array
+      } else {
+        // Handle cases where the response is not the expected object format
+        console.warn(
+          "Received unexpected data format for LLMs:",
+          fetchedLLMsData
+        );
+        setLlms([]); // Set to empty array
+        // Optionally show a more specific warning to the user
+        toast.warn("Could not parse LLM model data from the server.");
+      }
+    } catch (error) {
+      toast.error(`Failed to load LLMs: ${error.message}`);
+      setLlms([]); // Clear on error
+    } finally {
+      setIsLoading((prev) => ({ ...prev, llms: false }));
+    }
+  }, []); // Dependency array is empty as fetchApi and setters are stable
+  // --- Initial Load and Auth Check ---
   useEffect(() => {
-    const loadAdminData = async () => {
-      setIsLoading(true);
-      // Simulate API calls
-      setTimeout(() => {
-        setIsLoading(false);
-      }, 1000);
-    };
-
-    loadAdminData();
-  }, []);
-
-  const handleEditUser = (user) => {
-    setCurrentUser(user);
+    // Redirect non-admins or unauthenticated users
+    if (!authLoading && user && user.role !== "admin") {
+      toast.warn("Access denied. Redirecting to your dashboard.");
+      const destination =
+        user.role === "technician" ? "/technician-dashboard" : "/dashboard";
+      navigate(destination);
+      return; // Prevent further execution
+    }
+    // Load data only if authenticated as admin
+    if (authToken && user?.role === "admin") {
+      loadUsers();
+      loadLLMs();
+    } else if (!authLoading && !authToken) {
+      console.log("Admin Dashboard: Not authenticated. Redirecting to login.");
+      toast.info("Please log in to access the admin area.");
+      navigate("/login");
+    }
+    // Dependencies: authToken, user object (and its role), authLoading state, loading functions, navigate
+  }, [authToken, user, authLoading, loadUsers, loadLLMs, navigate]);
+  // --- User Management Handlers (Unchanged as requested) ---
+  const handleOpenEditUserModal = (userToEdit) => {
+    setCurrentUser(userToEdit);
     setShowUserModal(true);
   };
-
-  const handleDeleteUser = (userId) => {
-    if (window.confirm("Are you sure you want to delete this user?")) {
-      // In a real app, you would make an API call here
-      setUsers(users.filter((user) => user.id !== userId));
-      toast.success("User deleted successfully");
+  const handleDeleteUser = async (userId) => {
+    if (!authToken) {
+      toast.error("Authentication required.");
+      return;
+    }
+    if (user?.id === userId) {
+      toast.error("You cannot delete your own account.");
+      return;
+    }
+    if (
+      window.confirm(
+        "Are you sure you want to delete this user? This action cannot be undone."
+      )
+    ) {
+      setIsMutating(true);
+      try {
+        await fetchApi(`/users/${userId}`, authToken, { method: "DELETE" });
+        setUsers((prevUsers) => prevUsers.filter((u) => u.id !== userId));
+        toast.success("User deleted successfully");
+      } catch (error) {
+        toast.error(`Failed to delete user: ${error.message}`);
+      } finally {
+        setIsMutating(false);
+      }
     }
   };
-
-  const handleEditLLM = (llm) => {
-    setCurrentLLM(llm);
+  const handleUserStatusChange = async (userId, newStatusBool) => {
+    if (!authToken) {
+      toast.error("Authentication required.");
+      return;
+    }
+    if (user?.id === userId && !newStatusBool) {
+      toast.error("You cannot deactivate your own account.");
+      return;
+    }
+    setIsMutating(true);
+    try {
+      const updatedUser = await fetchApi(`/users/${userId}`, authToken, {
+        method: "PUT",
+        body: JSON.stringify({ is_active: newStatusBool }),
+      });
+      const finalUpdatedUser = {
+        ...updatedUser,
+        id: updatedUser.id || updatedUser._id,
+      };
+      setUsers((prevUsers) =>
+        prevUsers.map((u) => (u.id === userId ? finalUpdatedUser : u))
+      );
+      toast.success(`User status updated`);
+    } catch (error) {
+      toast.error(`Failed to update user status: ${error.message}`);
+    } finally {
+      setIsMutating(false);
+    }
+  };
+  const handleSaveUser = async (userData) => {
+    if (!authToken) {
+      toast.error("Authentication required.");
+      return;
+    }
+    if (!currentUser) {
+      toast.error("Cannot save user: No user selected for editing.");
+      return;
+    }
+    if (user?.id === currentUser.id && userData.role !== user.role) {
+      toast.error("You cannot change your own role here.");
+      return;
+    }
+    setIsMutating(true);
+    try {
+      const { role, ...detailsToUpdate } = userData;
+      const updatedUserDetails = await fetchApi(
+        `/users/${currentUser.id}`,
+        authToken,
+        {
+          method: "PUT",
+          body: JSON.stringify(detailsToUpdate),
+        }
+      );
+      let finalUpdatedUser = {
+        ...updatedUserDetails,
+        id: updatedUserDetails.id || updatedUserDetails._id,
+      };
+      if (role && role !== currentUser.role) {
+        const updatedUserRole = await fetchApi(
+          `/users/${currentUser.id}/role?role=${encodeURIComponent(role)}`,
+          authToken,
+          {
+            method: "PUT",
+          }
+        );
+        finalUpdatedUser = {
+          ...updatedUserRole,
+          id: updatedUserRole.id || updatedUserRole._id,
+        };
+      }
+      setUsers((prevUsers) =>
+        prevUsers.map((u) => (u.id === currentUser.id ? finalUpdatedUser : u))
+      );
+      setShowUserModal(false);
+      setCurrentUser(null);
+      toast.success("User updated successfully");
+    } catch (error) {
+      toast.error(`Failed to update user: ${error.message}`);
+    } finally {
+      setIsMutating(false);
+    }
+  };
+  // --- LLM Management Handlers ---
+  const handleOpenAddLLMModal = () => {
+    // No currentLLM needed for adding
     setShowLLMModal(true);
   };
-
-  const handleDeleteLLM = (llmId) => {
-    if (window.confirm("Are you sure you want to delete this LLM?")) {
-      // In a real app, you would make an API call here
-      setLlms(llms.filter((llm) => llm.id !== llmId));
-      toast.success("LLM deleted successfully");
+  // Function to add a new LLM model
+  const handleAddLLM = async (llmData) => {
+    if (!authToken) {
+      toast.error("Authentication required to add models.");
+      return;
+    }
+    setIsMutating(true);
+    try {
+      // Prepare payload according to AddModelRequest Pydantic model
+      const payload = {
+        model_id: llmData.model_id,
+        model_type: llmData.model_type || "llama", // Default if not provided
+        model_url: llmData.model_url || null,
+        file_name: llmData.file_name || null,
+        context_window: parseInt(llmData.context_window, 10) || 2048,
+        n_threads: parseInt(llmData.n_threads, 10) || 4,
+        n_gpu_layers: parseInt(llmData.n_gpu_layers, 10) || 0,
+        temperature: parseFloat(llmData.temperature) || 0.7,
+        keep_file_on_error: llmData.keep_file_on_error || false,
+        auto_correct_type: llmData.auto_correct_type || true,
+        download_only: llmData.download_only || false,
+      };
+      // Basic validation: Need either URL or FileName/Path
+      if (!payload.model_url && !payload.file_name) {
+        throw new Error("Either Model URL or File Name/Path must be provided.");
+      }
+      // Call the POST /llm-manager/models endpoint
+      // Assuming the add_model service returns the representation of the added/loading model
+      const addedLLMInfo = await fetchApi("/llm-manager/models", authToken, {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+      // Optimistically update the UI or reload list
+      // The backend might return details of the model being added/downloaded
+      // For simplicity, just reload the list for now to see the new model status
+      await loadLLMs(); // Reload the list to show the newly added model
+      setShowLLMModal(false); // Close modal on success
+      toast.success(
+        `LLM '${payload.model_id}' added successfully (or download initiated).`
+      );
+    } catch (error) {
+      toast.error(`Failed to add LLM: ${error.message}`);
+      // Keep modal open on error? Optional.
+      // setShowLLMModal(false);
+    } finally {
+      setIsMutating(false);
     }
   };
-
-  const handleUserStatusChange = (userId, newStatus) => {
-    // In a real app, you would make an API call here
-    setUsers(
-      users.map((user) =>
-        user.id === userId ? { ...user, status: newStatus } : user
+  // Function to delete an LLM model
+  const handleDeleteLLM = async (modelIdToDelete) => {
+    if (!authToken) {
+      toast.error("Authentication required to delete models.");
+      return;
+    }
+    if (
+      window.confirm(
+        `Are you sure you want to delete the LLM with ID: ${modelIdToDelete}?`
       )
-    );
-    toast.success(`User status updated to ${newStatus}`);
+    ) {
+      setIsMutating(true);
+      try {
+        await fetchApi(`/llm-manager/models/${modelIdToDelete}`, authToken, {
+          method: "DELETE",
+        });
+        setLlms((prevLlms) =>
+          prevLlms.filter((llm) => llm.id !== modelIdToDelete)
+        );
+        toast.success(`LLM '${modelIdToDelete}' deleted successfully.`);
+      } catch (error) {
+        toast.error(`Failed to delete LLM: ${error.message}`);
+      } finally {
+        setIsMutating(false);
+      }
+    }
   };
-
-  const handleLLMStatusChange = (llmId, newStatus) => {
-    // In a real app, you would make an API call here
-    setLlms(
-      llms.map((llm) =>
-        llm.id === llmId ? { ...llm, status: newStatus } : llm
-      )
-    );
-    toast.success(`LLM status updated to ${newStatus}`);
-  };
-
+  // --- Other Handlers ---
   const handleLogout = () => {
     logout();
-    navigate("/login");
+    navigate("/login"); // Redirect to login after logout
   };
-
+  // --- Filtering ---
   const filteredUsers = users.filter(
-    (user) =>
-      user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.role.toLowerCase().includes(searchTerm.toLowerCase())
+    (u) =>
+      u.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      u.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      u.role?.toLowerCase().includes(searchTerm.toLowerCase())
   );
-
   const filteredLLMs = llms.filter(
     (llm) =>
-      llm.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      llm.provider.toLowerCase().includes(searchTerm.toLowerCase())
+      llm.id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      llm.type?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      llm.path?.toLowerCase().includes(searchTerm.toLowerCase())
   );
-
+  // --- Derived State for Overview ---
+  const activeUserCount = users.filter((u) => u.is_active).length;
+  const totalUserCount = users.length;
+  // LLM status isn't directly managed via API, so 'active' count might be just the total count.
+  // Or, if the backend /models endpoint only returns *loaded* models, this count is accurate.
+  const totalLLMCount = llms.length;
+  const isSectionLoading = isLoading.users || isLoading.llms;
+  // --- Render Logic ---
+  // Loading state or redirect state
+  if (authLoading) {
+    return (
+      <div className="loading-spinner">
+        <FiLoader className="spin-icon" /> Loading Authentication...
+      </div>
+    );
+  }
+  // Redirect check happens in useEffect, but this prevents rendering if not admin yet
+  if (!user || user.role !== "admin") {
+    // Display minimal loading or nothing while redirect occurs
+    return (
+      <div className="loading-spinner">
+        <FiLoader className="spin-icon" /> Verifying access...
+      </div>
+    );
+  }
+  // Main Admin Dashboard Render
   return (
     <div className="admin-dashboard">
-      {/* Header */}
       <header className="admin-header">
         <div className="admin-header-left">
           <div className="admin-logo">
@@ -282,43 +483,33 @@ const AdminDashboard = () => {
         </div>
         <div className="admin-header-right">
           <div className="admin-search">
-            <FiSearch className="search-icon" />
             <input
               type="text"
-              placeholder="Search..."
+              placeholder="Search Users or LLMs"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="search-input"
             />
           </div>
-          <div className="admin-user-menu">
-            <div className="user-info">
-              <div className="user-avatar">
-                <FiUser />
-              </div>
-              <span className="user-name">{user?.username || "Admin"}</span>
-              <FiChevronDown className="dropdown-icon" />
+
+          <div className="user-info">
+            <div className="avatar">
+              <FiUser size={14} />
             </div>
-            <div className="user-dropdown">
-              <button
-                className="dropdown-item"
-                onClick={() => navigate("/settings")}
-              >
-                <FiSettings />
-                <span>Settings</span>
-              </button>
-              <button className="dropdown-item logout" onClick={handleLogout}>
-                <FiLogOut />
-                <span>Logout</span>
-              </button>
-            </div>
+            <span className="username">{user?.username || "User"}</span>
           </div>
+
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="logout-button"
+          >
+            <FiLogOut size={16} className="logout-icon" />
+            <span>Logout</span>
+          </button>
         </div>
       </header>
-
-      {/* Main content */}
       <div className="admin-content">
-        {/* Sidebar */}
         <aside className="admin-sidebar">
           <nav className="admin-nav">
             <button
@@ -346,165 +537,59 @@ const AdminDashboard = () => {
               <FiCpu className="nav-icon" />
               <span>LLM Management</span>
             </button>
-            <button
-              className={`nav-item ${
-                activeSection === "system" ? "active" : ""
-              }`}
-              onClick={() => setActiveSection("system")}
-            >
-              <FiSettings className="nav-icon" />
-              <span>System Settings</span>
-            </button>
-            <button
-              className={`nav-item ${
-                activeSection === "database" ? "active" : ""
-              }`}
-              onClick={() => setActiveSection("database")}
-            >
-              <FiDatabase className="nav-icon" />
-              <span>Database</span>
-            </button>
           </nav>
         </aside>
-
-        {/* Main area */}
         <main className="admin-main">
-          {isLoading ? (
-            <div className="loading-spinner">Loading...</div>
+          {isSectionLoading || isMutating ? (
+            <div className="loading-spinner">
+              <FiLoader className="spin-icon" />{" "}
+              {isMutating ? "Processing..." : "Loading..."}
+            </div>
           ) : (
             <>
-              {/* Overview Section */}
               {activeSection === "overview" && (
                 <section className="admin-section">
                   <h2 className="section-title">System Overview</h2>
-
                   <div className="stats-grid">
                     <div className="stat-card">
                       <div className="stat-icon users">
                         <FiUsers />
                       </div>
                       <div className="stat-info">
-                        <h3 className="stat-title">Active Users</h3>
-                        <p className="stat-value">{systemStats.activeUsers}</p>
+                        <h3 className="stat-title">Total Users</h3>
+                        <p className="stat-value">{totalUserCount}</p>
+                        <p className="stat-subvalue">
+                          {activeUserCount} Active
+                        </p>
                       </div>
                     </div>
-
                     <div className="stat-card">
                       <div className="stat-icon models">
                         <FiCpu />
                       </div>
                       <div className="stat-info">
-                        <h3 className="stat-title">Active Models</h3>
-                        <p className="stat-value">{systemStats.activeModels}</p>
+                        <h3 className="stat-title">Available LLMs</h3>
+                        <p className="stat-value">{totalLLMCount}</p>
                       </div>
-                    </div>
-
-                    <div className="stat-card">
-                      <div className="stat-icon conversations">
-                        <FiBarChart2 />
-                      </div>
-                      <div className="stat-info">
-                        <h3 className="stat-title">Total Conversations</h3>
-                        <p className="stat-value">
-                          {systemStats.totalConversations}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="stat-card">
-                      <div className="stat-icon cost">
-                        <FiDatabase />
-                      </div>
-                      <div className="stat-info">
-                        <h3 className="stat-title">Total Cost</h3>
-                        <p className="stat-value">
-                          ${systemStats.totalCost.toFixed(2)}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="overview-details">
-                    <div className="overview-card">
-                      <h3 className="card-title">System Health</h3>
-                      <div className="health-metrics">
-                        <div className="metric">
-                          <span className="metric-label">Uptime</span>
-                          <span className="metric-value">
-                            {systemStats.systemUptime}
-                          </span>
-                        </div>
-                        <div className="metric">
-                          <span className="metric-label">
-                            Avg Response Time
-                          </span>
-                          <span className="metric-value">
-                            {systemStats.averageResponseTime}
-                          </span>
-                        </div>
-                        <div className="metric">
-                          <span className="metric-label">
-                            Total Tokens Used
-                          </span>
-                          <span className="metric-value">
-                            {systemStats.totalTokensUsed.toLocaleString()}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="overview-card">
-                      <h3 className="card-title">Most Active LLMs</h3>
-                      <ul className="llm-list">
-                        {llms
-                          .sort(
-                            (a, b) => b.usage.totalTokens - a.usage.totalTokens
-                          )
-                          .slice(0, 3)
-                          .map((llm) => (
-                            <li key={llm.id} className="llm-item">
-                              <div className="llm-info">
-                                <h4 className="llm-name">{llm.name}</h4>
-                                <p className="llm-provider">{llm.provider}</p>
-                              </div>
-                              <div className="llm-usage">
-                                <div className="usage-metric">
-                                  <span className="metric-label">Tokens</span>
-                                  <span className="metric-value">
-                                    {llm.usage.totalTokens.toLocaleString()}
-                                  </span>
-                                </div>
-                                <div className="usage-metric">
-                                  <span className="metric-label">Cost</span>
-                                  <span className="metric-value">
-                                    ${llm.usage.totalCost.toFixed(2)}
-                                  </span>
-                                </div>
-                              </div>
-                            </li>
-                          ))}
-                      </ul>
                     </div>
                   </div>
                 </section>
               )}
-
-              {/* User Management Section */}
               {activeSection === "users" && (
                 <section className="admin-section">
                   <div className="section-header">
                     <h2 className="section-title">User Management</h2>
                     <button
-                      className="action-button"
-                      onClick={() => {
-                        setCurrentUser(null);
-                        setShowUserModal(true);
-                      }}
+                      className="action-button refresh-button"
+                      onClick={loadUsers}
+                      disabled={isLoading.users}
                     >
-                      <FiPlus /> Add User
+                      <FiRefreshCw
+                        className={isLoading.users ? "spin-icon" : ""}
+                      />{" "}
+                      Refresh Users
                     </button>
                   </div>
-
                   <div className="table-container">
                     <table className="admin-table">
                       <thead>
@@ -514,50 +599,57 @@ const AdminDashboard = () => {
                           <th>Role</th>
                           <th>Status</th>
                           <th>Last Login</th>
-                          <th>Conversations</th>
                           <th>Actions</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {filteredUsers.map((user) => (
-                          <tr key={user.id}>
-                            <td>{user.username}</td>
-                            <td>{user.email}</td>
+                        {filteredUsers.map((u) => (
+                          <tr key={u.id}>
+                            <td>{u.username}</td>
+                            <td>{u.email}</td>
                             <td>
-                              <span className={`role-badge ${user.role}`}>
-                                {user.role}
+                              <span className={`role-badge ${u.role}`}>
+                                {u.role}
                               </span>
                             </td>
                             <td>
                               <select
-                                className={`status-select ${user.status}`}
-                                value={user.status}
+                                className={`status-select ${
+                                  u.is_active ? "active" : "disabled"
+                                }`}
+                                value={u.is_active ? "active" : "disabled"}
                                 onChange={(e) =>
                                   handleUserStatusChange(
-                                    user.id,
-                                    e.target.value
+                                    u.id,
+                                    e.target.value === "active"
                                   )
                                 }
+                                disabled={isMutating || user?.id === u.id}
                               >
                                 <option value="active">Active</option>
                                 <option value="disabled">Disabled</option>
                               </select>
                             </td>
-                            <td>{new Date(user.lastLogin).toLocaleString()}</td>
-                            <td>{user.conversationsCount}</td>
+                            <td>
+                              {u.last_login
+                                ? new Date(u.last_login).toLocaleString()
+                                : "N/A"}
+                            </td>
                             <td>
                               <div className="action-buttons">
                                 <button
                                   className="edit-button"
-                                  onClick={() => handleEditUser(user)}
+                                  onClick={() => handleOpenEditUserModal(u)}
                                   title="Edit user"
+                                  disabled={isMutating}
                                 >
                                   <FiEdit />
                                 </button>
                                 <button
                                   className="delete-button"
-                                  onClick={() => handleDeleteUser(user.id)}
+                                  onClick={() => handleDeleteUser(u.id)}
                                   title="Delete user"
+                                  disabled={isMutating || user?.id === u.id}
                                 >
                                   <FiTrash2 />
                                 </button>
@@ -567,420 +659,112 @@ const AdminDashboard = () => {
                         ))}
                       </tbody>
                     </table>
+                    {filteredUsers.length === 0 && !isLoading.users && (
+                      <p className="no-data-message">
+                        No users found matching your criteria.
+                      </p>
+                    )}
                   </div>
                 </section>
               )}
-
-              {/* LLM Management Section */}
               {activeSection === "llms" && (
                 <section className="admin-section">
                   <div className="section-header">
                     <h2 className="section-title">LLM Management</h2>
-                    <button
-                      className="action-button"
-                      onClick={() => {
-                        setCurrentLLM(null);
-                        setShowLLMModal(true);
-                      }}
-                    >
-                      <FiPlus /> Add LLM
-                    </button>
+                    <div>
+                      <button
+                        className="action-button refresh-button"
+                        onClick={loadLLMs}
+                        disabled={isLoading.llms}
+                        style={{ marginRight: "10px", marginTop: "10px" }}
+                      >
+                        <FiRefreshCw
+                          className={isLoading.llms ? "spin-icon" : ""}
+                        />{" "}
+                        Refresh LLMs
+                      </button>
+                      <button
+                        className="action-button"
+                        onClick={handleOpenAddLLMModal}
+                        disabled={isMutating}
+                      >
+                        <FiPlus /> Add LLM
+                      </button>
+                    </div>
                   </div>
-
                   <div className="llm-cards">
                     {filteredLLMs.map((llm) => (
                       <div key={llm.id} className="llm-card">
                         <div className="llm-card-header">
-                          <h3 className="llm-name">{llm.name}</h3>
+                          <h3 className="llm-name">{llm.model_id || llm.id}</h3>
                           <div className="llm-actions">
                             <button
-                              className="action-icon"
-                              onClick={() => handleEditLLM(llm)}
-                              title="Edit LLM"
-                            >
-                              <FiEdit />
-                            </button>
-                            <button
-                              className="action-icon"
-                              onClick={() => handleDeleteLLM(llm.id)}
+                              className="action-icon delete-icon"
+                              onClick={() => handleDeleteLLM(llm.id)} // Use the main unique ID for deletion
                               title="Delete LLM"
+                              disabled={isMutating}
                             >
                               <FiTrash2 />
                             </button>
                           </div>
                         </div>
-
                         <div className="llm-provider">
-                          <span className="provider-label">Provider:</span>
-                          <span className="provider-value">{llm.provider}</span>
+                          {" "}
+                          <span className="provider-label">Type:</span>
+                          <span className="provider-value">{llm.type}</span>
                         </div>
-
                         <div className="llm-details">
-                          <div className="llm-detail">
-                            <span className="detail-label">Token Limit:</span>
-                            <span className="detail-value">
-                              {llm.tokenLimit.toLocaleString()}
+                          <div className="llm-detail endpoint">
+                            {" "}
+                            <span className="detail-label">
+                              {llm.path?.startsWith("http") ? (
+                                <FiDownloadCloud title="URL Source" />
+                              ) : (
+                                <FiFileText title="File Path Source" />
+                              )}{" "}
+                              Source:
                             </span>
-                          </div>
-                          <div className="llm-detail">
-                            <span className="detail-label">Cost per 1k:</span>
-                            <span className="detail-value">
-                              ${llm.costPer1kTokens}
-                            </span>
-                          </div>
-                          <div className="llm-detail">
-                            <span className="detail-label">Status:</span>
-                            <select
-                              className={`status-select mini ${llm.status}`}
-                              value={llm.status}
-                              onChange={(e) =>
-                                handleLLMStatusChange(llm.id, e.target.value)
-                              }
+                            <span
+                              className="detail-value endpoint-value"
+                              title={llm.path}
                             >
-                              <option value="active">Active</option>
-                              <option value="maintenance">Maintenance</option>
-                              <option value="disabled">Disabled</option>
-                            </select>
-                          </div>
-                        </div>
-
-                        <div className="llm-usage-stats">
-                          <div className="usage-stat">
-                            <span className="stat-label">Total Tokens</span>
-                            <span className="stat-value">
-                              {llm.usage.totalTokens.toLocaleString()}
+                              {llm.path || "N/A"}
                             </span>
                           </div>
-                          <div className="usage-stat">
-                            <span className="stat-label">Total Cost</span>
-                            <span className="stat-value">
-                              ${llm.usage.totalCost.toFixed(2)}
+                          <div className="llm-detail">
+                            <span className="detail-label">Context:</span>
+                            <span className="detail-value">
+                              {llm.context_window?.toLocaleString() || "N/A"}
                             </span>
                           </div>
-                          <div className="usage-stat">
-                            <span className="stat-label">Active Users</span>
-                            <span className="stat-value">
-                              {llm.usage.activeUsers}
+                          <div className="llm-detail">
+                            <span className="detail-label">Threads:</span>
+                            <span className="detail-value">
+                              {llm.n_threads || "N/A"}
                             </span>
                           </div>
-                        </div>
-
-                        <div className="llm-actions-footer">
-                          <button className="refresh-button">
-                            <FiRefreshCw /> Test Connection
-                          </button>
+                          <div className="llm-detail">
+                            <span className="detail-label">GPU Layers:</span>
+                            <span className="detail-value">
+                              {llm.n_gpu_layers ?? "N/A"}
+                            </span>
+                          </div>
+                          <div className="llm-detail">
+                            <span className="detail-label">Temp:</span>
+                            <span className="detail-value">
+                              {llm.temperature ?? "N/A"}
+                            </span>
+                          </div>
                         </div>
                       </div>
                     ))}
-                  </div>
-                </section>
-              )}
-
-              {/* System Settings Section */}
-              {activeSection === "system" && (
-                <section className="admin-section">
-                  <h2 className="section-title">System Settings</h2>
-
-                  <div className="settings-container">
-                    <div className="settings-group">
-                      <h3 className="group-title">Authentication</h3>
-
-                      <div className="settings-form-group">
-                        <label>Token Expiration (minutes)</label>
-                        <input
-                          type="number"
-                          className="settings-input"
-                          defaultValue="60"
-                          min="5"
-                          max="1440"
-                        />
-                      </div>
-
-                      <div className="settings-form-group">
-                        <label>Maximum Login Attempts</label>
-                        <input
-                          type="number"
-                          className="settings-input"
-                          defaultValue="5"
-                          min="1"
-                          max="10"
-                        />
-                      </div>
-
-                      <div className="settings-form-group">
-                        <label>Password Policy</label>
-                        <select className="settings-select">
-                          <option value="standard">
-                            Standard (8+ chars, mixed case)
-                          </option>
-                          <option value="strong">
-                            Strong (12+ chars, mixed case, symbols)
-                          </option>
-                          <option value="custom">Custom</option>
-                        </select>
-                      </div>
-
-                      <div className="settings-form-group checkbox">
-                        <input type="checkbox" id="mfa" defaultChecked />
-                        <label htmlFor="mfa">
-                          Require MFA for Admin accounts
-                        </label>
-                      </div>
-                    </div>
-
-                    <div className="settings-group">
-                      <h3 className="group-title">API and Rate Limits</h3>
-
-                      <div className="settings-form-group">
-                        <label>Requests per minute (per user)</label>
-                        <input
-                          type="number"
-                          className="settings-input"
-                          defaultValue="60"
-                          min="1"
-                          max="1000"
-                        />
-                      </div>
-
-                      <div className="settings-form-group">
-                        <label>Max token allocation per user/day</label>
-                        <input
-                          type="number"
-                          className="settings-input"
-                          defaultValue="50000"
-                          min="1000"
-                        />
-                      </div>
-
-                      <div className="settings-form-group">
-                        <label>Concurrent requests per user</label>
-                        <input
-                          type="number"
-                          className="settings-input"
-                          defaultValue="3"
-                          min="1"
-                          max="10"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="settings-group">
-                      <h3 className="group-title">System Maintenance</h3>
-
-                      <div className="settings-form-group">
-                        <label>Automatic backup frequency</label>
-                        <select className="settings-select">
-                          <option value="daily">Daily</option>
-                          <option value="weekly">Weekly</option>
-                          <option value="monthly">Monthly</option>
-                        </select>
-                      </div>
-
-                      <div className="settings-form-group">
-                        <label>Backup retention (days)</label>
-                        <input
-                          type="number"
-                          className="settings-input"
-                          defaultValue="30"
-                          min="1"
-                          max="365"
-                        />
-                      </div>
-
-                      <div className="settings-form-group checkbox">
-                        <input
-                          type="checkbox"
-                          id="auto-updates"
-                          defaultChecked
-                        />
-                        <label htmlFor="auto-updates">
-                          Enable automatic updates
-                        </label>
-                      </div>
-
-                      <button className="backup-button action-button">
-                        <FiDatabase /> Create Manual Backup
-                      </button>
-                    </div>
-
-                    <div className="settings-actions">
-                      <button className="save-button">Save Settings</button>
-                      <button className="reset-button">
-                        Reset to Defaults
-                      </button>
-                    </div>
-                  </div>
-                </section>
-              )}
-
-              {/* Database Section */}
-              {activeSection === "database" && (
-                <section className="admin-section">
-                  <h2 className="section-title">Database Management</h2>
-
-                  <div className="database-status">
-                    <div className="status-card">
-                      <h3 className="card-title">MongoDB Status</h3>
-
-                      <div className="status-metric">
-                        <span className="metric-label">Status</span>
-                        <span className="metric-value connected">
-                          Connected
-                        </span>
-                      </div>
-
-                      <div className="status-metric">
-                        <span className="metric-label">Version</span>
-                        <span className="metric-value">5.0.14</span>
-                      </div>
-
-                      <div className="status-metric">
-                        <span className="metric-label">Uptime</span>
-                        <span className="metric-value">14d 6h 32m</span>
-                      </div>
-
-                      <div className="status-metric">
-                        <span className="metric-label">Storage Size</span>
-                        <span className="metric-value">1.24 GB</span>
-                      </div>
-                    </div>
-
-                    <div className="status-card">
-                      <h3 className="card-title">Collections</h3>
-
-                      <div className="collection-list">
-                        <div className="collection-item">
-                          <span className="collection-name">users</span>
-                          <span className="collection-count">
-                            124 documents
-                          </span>
-                        </div>
-                        <div className="collection-item">
-                          <span className="collection-name">conversations</span>
-                          <span className="collection-count">
-                            1,243 documents
-                          </span>
-                        </div>
-                        <div className="collection-item">
-                          <span className="collection-name">messages</span>
-                          <span className="collection-count">
-                            15,872 documents
-                          </span>
-                        </div>
-                        <div className="collection-item">
-                          <span className="collection-name">llms</span>
-                          <span className="collection-count">5 documents</span>
-                        </div>
-                        <div className="collection-item">
-                          <span className="collection-name">settings</span>
-                          <span className="collection-count">12 documents</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="database-actions">
-                    <div className="action-group">
-                      <h3 className="group-title">Maintenance</h3>
-
-                      <div className="db-action-buttons">
-                        <button className="db-action-button">
-                          <FiRefreshCw className="button-icon" />
-                          <span>Repair Database</span>
-                        </button>
-
-                        <button className="db-action-button">
-                          <FiDatabase className="button-icon" />
-                          <span>Compact Collections</span>
-                        </button>
-
-                        <button className="db-action-button">
-                          <FiBarChart2 className="button-icon" />
-                          <span>Rebuild Indexes</span>
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="action-group">
-                      <h3 className="group-title">Backup & Restore</h3>
-
-                      <div className="backup-list">
-                        <div className="backup-item">
-                          <span className="backup-date">2023-06-16 03:00</span>
-                          <span className="backup-size">1.18 GB</span>
-                          <div className="backup-actions">
-                            <button
-                              className="icon-button"
-                              title="Restore from this backup"
-                            >
-                              <FiRefreshCw />
-                            </button>
-                            <button
-                              className="icon-button"
-                              title="Download backup"
-                            >
-                              <FiDatabase />
-                            </button>
-                            <button
-                              className="icon-button"
-                              title="Delete backup"
-                            >
-                              <FiTrash2 />
-                            </button>
-                          </div>
-                        </div>
-
-                        <div className="backup-item">
-                          <span className="backup-date">2023-06-15 03:00</span>
-                          <span className="backup-size">1.15 GB</span>
-                          <div className="backup-actions">
-                            <button
-                              className="icon-button"
-                              title="Restore from this backup"
-                            >
-                              <FiRefreshCw />
-                            </button>
-                            <button
-                              className="icon-button"
-                              title="Download backup"
-                            >
-                              <FiDatabase />
-                            </button>
-                            <button
-                              className="icon-button"
-                              title="Delete backup"
-                            >
-                              <FiTrash2 />
-                            </button>
-                          </div>
-                        </div>
-
-                        <div className="backup-item">
-                          <span className="backup-date">2023-06-14 03:00</span>
-                          <span className="backup-size">1.12 GB</span>
-                          <div className="backup-actions">
-                            <button
-                              className="icon-button"
-                              title="Restore from this backup"
-                            >
-                              <FiRefreshCw />
-                            </button>
-                            <button
-                              className="icon-button"
-                              title="Download backup"
-                            >
-                              <FiDatabase />
-                            </button>
-                            <button
-                              className="icon-button"
-                              title="Delete backup"
-                            >
-                              <FiTrash2 />
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
+                    {filteredLLMs.length === 0 && !isLoading.llms && (
+                      <p className="no-data-message">
+                        {llms.length === 0
+                          ? "No LLMs configured."
+                          : "No LLMs found matching your criteria."}
+                      </p>
+                    )}
                   </div>
                 </section>
               )}
@@ -988,228 +772,411 @@ const AdminDashboard = () => {
           )}
         </main>
       </div>
-
-      {/* User Modal */}
-      {showUserModal && (
-        <div className="modal-backdrop">
-          <div className="modal-container">
-            <div className="modal-header">
-              <h3>{currentUser ? "Edit User" : "Add New User"}</h3>
-              <button
-                className="close-button"
-                onClick={() => setShowUserModal(false)}
-              >
-                ×
-              </button>
-            </div>
-            <div className="modal-body">
-              <div className="form-group">
-                <label htmlFor="username">Username</label>
-                <input
-                  type="text"
-                  id="username"
-                  className="form-input"
-                  defaultValue={currentUser?.username || ""}
-                />
-              </div>
-
-              <div className="form-group">
-                <label htmlFor="email">Email</label>
-                <input
-                  type="email"
-                  id="email"
-                  className="form-input"
-                  defaultValue={currentUser?.email || ""}
-                />
-              </div>
-
-              <div className="form-group">
-                <label htmlFor="role">Role</label>
-                <select
-                  id="role"
-                  className="form-select"
-                  defaultValue={currentUser?.role || "user"}
-                >
-                  <option value="user">User</option>
-                  <option value="technician">Technician</option>
-                  <option value="admin">Administrator</option>
-                </select>
-              </div>
-
-              <div className="form-group">
-                <label htmlFor="status">Status</label>
-                <select
-                  id="status"
-                  className="form-select"
-                  defaultValue={currentUser?.status || "active"}
-                >
-                  <option value="active">Active</option>
-                  <option value="disabled">Disabled</option>
-                </select>
-              </div>
-
-              {!currentUser && (
-                <>
-                  <div className="form-group">
-                    <label htmlFor="password">Password</label>
-                    <input
-                      type="password"
-                      id="password"
-                      className="form-input"
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <label htmlFor="confirmPassword">Confirm Password</label>
-                    <input
-                      type="password"
-                      id="confirmPassword"
-                      className="form-input"
-                    />
-                  </div>
-                </>
-              )}
-            </div>
-            <div className="modal-footer">
-              <button
-                className="cancel-button"
-                onClick={() => setShowUserModal(false)}
-              >
-                Cancel
-              </button>
-              <button
-                className="save-button"
-                onClick={() => {
-                  // Handle save logic here
-                  setShowUserModal(false);
-                  toast.success(
-                    currentUser
-                      ? "User updated successfully"
-                      : "User added successfully"
-                  );
-                }}
-              >
-                {currentUser ? "Update User" : "Add User"}
-              </button>
-            </div>
-          </div>
-        </div>
+      {showUserModal && currentUser && authToken && (
+        <UserEditModal
+          user={currentUser}
+          onClose={() => {
+            setShowUserModal(false);
+            setCurrentUser(null);
+          }}
+          onSave={handleSaveUser}
+          isLoading={isMutating}
+          currentAdminUser={user}
+        />
       )}
-
-      {/* LLM Modal */}
-      {showLLMModal && (
-        <div className="modal-backdrop">
-          <div className="modal-container">
-            <div className="modal-header">
-              <h3>{currentLLM ? "Edit LLM" : "Add New LLM"}</h3>
-              <button
-                className="close-button"
-                onClick={() => setShowLLMModal(false)}
-              >
-                ×
-              </button>
-            </div>
-            <div className="modal-body">
-              <div className="form-group">
-                <label htmlFor="name">Model Name</label>
-                <input
-                  type="text"
-                  id="name"
-                  className="form-input"
-                  defaultValue={currentLLM?.name || ""}
-                />
-              </div>
-
-              <div className="form-group">
-                <label htmlFor="provider">Provider</label>
-                <input
-                  type="text"
-                  id="provider"
-                  className="form-input"
-                  defaultValue={currentLLM?.provider || ""}
-                />
-              </div>
-
-              <div className="form-group">
-                <label htmlFor="apiEndpoint">API Endpoint</label>
-                <input
-                  type="text"
-                  id="apiEndpoint"
-                  className="form-input"
-                  defaultValue={currentLLM?.apiEndpoint || ""}
-                />
-              </div>
-
-              <div className="form-group">
-                <label htmlFor="apiKey">
-                  API Key (leave blank to keep current)
-                </label>
-                <input type="password" id="apiKey" className="form-input" />
-              </div>
-
-              <div className="form-group">
-                <label htmlFor="tokenLimit">Token Limit</label>
-                <input
-                  type="number"
-                  id="tokenLimit"
-                  className="form-input"
-                  defaultValue={currentLLM?.tokenLimit || 8000}
-                  min="1000"
-                />
-              </div>
-
-              <div className="form-group">
-                <label htmlFor="costPer1kTokens">Cost per 1k Tokens ($)</label>
-                <input
-                  type="number"
-                  id="costPer1kTokens"
-                  className="form-input"
-                  defaultValue={currentLLM?.costPer1kTokens || 0.03}
-                  step="0.01"
-                  min="0"
-                />
-              </div>
-
-              <div className="form-group">
-                <label htmlFor="llmStatus">Status</label>
-                <select
-                  id="llmStatus"
-                  className="form-select"
-                  defaultValue={currentLLM?.status || "active"}
-                >
-                  <option value="active">Active</option>
-                  <option value="maintenance">Maintenance</option>
-                  <option value="disabled">Disabled</option>
-                </select>
-              </div>
-            </div>
-            <div className="modal-footer">
-              <button
-                className="cancel-button"
-                onClick={() => setShowLLMModal(false)}
-              >
-                Cancel
-              </button>
-              <button
-                className="save-button"
-                onClick={() => {
-                  // Handle save logic here
-                  setShowLLMModal(false);
-                  toast.success(
-                    currentLLM
-                      ? "LLM updated successfully"
-                      : "LLM added successfully"
-                  );
-                }}
-              >
-                {currentLLM ? "Update LLM" : "Add LLM"}
-              </button>
-            </div>
-          </div>
-        </div>
+      {showLLMModal && authToken && (
+        <LLMAddModal // Changed name for clarity
+          onClose={() => {
+            setShowLLMModal(false);
+          }}
+          onAdd={handleAddLLM} // Use the add handler
+          isLoading={isMutating}
+        />
       )}
     </div>
   );
 };
-
+const UserEditModal = ({
+  user: userToEdit,
+  currentAdminUser,
+  onClose,
+  onSave,
+  isLoading,
+}) => {
+  const [formData, setFormData] = useState({
+    username: userToEdit?.username || "",
+    email: userToEdit?.email || "",
+    role: userToEdit?.role || "user",
+  });
+  const isEditingSelf = currentAdminUser?.id === userToEdit?.id;
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!formData.email || !formData.role) {
+      toast.error("Email and Role are required.");
+      return;
+    }
+    if (isEditingSelf && formData.role !== currentAdminUser?.role) {
+      toast.error("You cannot change your own role from this modal.");
+      return;
+    }
+    onSave(formData);
+  };
+  return (
+    <div className="modal-backdrop">
+      <div className="modal-container">
+        <form onSubmit={handleSubmit}>
+          <div className="modal-header">
+            <h3>Edit User ({userToEdit?.username})</h3>
+            <button
+              type="button"
+              className="close-button"
+              onClick={onClose}
+              disabled={isLoading}
+            >
+              ×
+            </button>
+          </div>
+          <div className="modal-body">
+            <div className="form-group">
+              <label htmlFor="username">Username</label>
+              <input
+                type="text"
+                id="username"
+                name="username"
+                className="form-input"
+                value={formData.username}
+                readOnly
+                disabled
+              />
+              <small>Username cannot be changed.</small>
+            </div>
+            <div className="form-group">
+              <label htmlFor="email">Email *</label>
+              <input
+                type="email"
+                id="email"
+                name="email"
+                className="form-input"
+                value={formData.email}
+                onChange={handleChange}
+                required
+                disabled={isLoading}
+              />
+            </div>
+            <div className="form-group">
+              <label htmlFor="role">Role *</label>
+              <select
+                id="role"
+                name="role"
+                className="form-select"
+                value={formData.role}
+                onChange={handleChange}
+                required
+                disabled={isLoading || isEditingSelf}
+              >
+                <option value="user">User</option>
+                <option value="technician">Technician</option>
+                <option value="admin">Administrator</option>
+              </select>
+              {isEditingSelf && <small>You cannot change your own role.</small>}
+            </div>
+          </div>
+          <div className="modal-footer">
+            <button
+              type="button"
+              className="cancel-button"
+              onClick={onClose}
+              disabled={isLoading}
+            >
+              Cancel
+            </button>
+            <button type="submit" className="save-button" disabled={isLoading}>
+              {isLoading ? <FiLoader className="spin-icon" /> : "Update User"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+/**
+ * Modal component for adding new LLM configurations.
+ * Fields match the AddModelRequest Pydantic model.
+ */
+const LLMAddModal = ({ onClose, onAdd, isLoading }) => {
+  // Initialize state based on AddModelRequest defaults
+  const [formData, setFormData] = useState({
+    model_id: "",
+    model_type: "llama", // Default type
+    model_url: "",
+    file_name: "",
+    context_window: 2048,
+    n_threads: 4,
+    n_gpu_layers: 0,
+    temperature: 0.7,
+    keep_file_on_error: false,
+    auto_correct_type: true,
+    download_only: false,
+  });
+  const handleChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      // Handle checkboxes vs other inputs
+      [name]:
+        type === "checkbox"
+          ? checked
+          : type === "number"
+          ? value === ""
+            ? ""
+            : Number(value)
+          : value,
+    }));
+  };
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    // Validation: Ensure required fields are present
+    if (!formData.model_id) {
+      toast.error("Model ID is required.");
+      return;
+    }
+    if (!formData.model_url && !formData.file_name) {
+      toast.error("Either Model URL or File Name must be provided.");
+      return;
+    }
+    if (formData.model_url && formData.file_name) {
+      toast.warn("Provide either Model URL or File Name, not both. Using URL.");
+      // Optionally clear file_name if URL is prioritized
+      // formData.file_name = '';
+    }
+    // Ensure numeric fields are numbers or default if empty
+    const payload = {
+      ...formData,
+      context_window: Number(formData.context_window) || 2048,
+      n_threads: Number(formData.n_threads) || 4,
+      n_gpu_layers: Number(formData.n_gpu_layers) || 0,
+      temperature: parseFloat(formData.temperature) || 0.7,
+    };
+    onAdd(payload); // Pass the processed data to the handler
+  };
+  return (
+    <div className="modal-backdrop">
+      <div className="modal-container large">
+        {" "}
+        <form onSubmit={handleSubmit}>
+          <div className="modal-header">
+            <h3>Add New LLM Configuration</h3>
+            <button
+              type="button"
+              className="close-button"
+              onClick={onClose}
+              disabled={isLoading}
+            >
+              ×
+            </button>
+          </div>
+          <div className="modal-body llm-modal-body">
+            {" "}
+            <div className="form-group required">
+              <label htmlFor="model_id">Model ID *</label>
+              <input
+                type="text"
+                id="model_id"
+                name="model_id"
+                className="form-input"
+                value={formData.model_id}
+                onChange={handleChange}
+                required
+                disabled={isLoading}
+                placeholder="Unique identifier (e.g., llama3-8b-instruct)"
+              />
+              <small>A unique name for this model configuration.</small>
+            </div>
+            <div className="form-group required">
+              <label>Model Source *</label>
+              <div className="source-options">
+                <div className="form-group">
+                  <label htmlFor="model_url">Model URL</label>
+                  <input
+                    type="url"
+                    id="model_url"
+                    name="model_url"
+                    className="form-input"
+                    value={formData.model_url}
+                    onChange={handleChange}
+                    disabled={isLoading || !!formData.file_name}
+                    placeholder="https://huggingface.co/.../gguf-quant.bin"
+                  />
+                  <small>
+                    URL to download the model from (e.g., Hugging Face).
+                  </small>
+                </div>
+                <span className="or-divider">OR</span>
+                <div className="form-group">
+                  <label htmlFor="file_name">File Name / Path</label>
+                  <input
+                    type="text"
+                    id="file_name"
+                    name="file_name"
+                    className="form-input"
+                    value={formData.file_name}
+                    onChange={handleChange}
+                    disabled={isLoading || !!formData.model_url}
+                    placeholder="/path/on/server/model.gguf"
+                  />
+                  <small>Path to the model file *on the server*.</small>
+                </div>
+              </div>
+              <small className="required-hint">
+                Provide either a URL or a server file path.
+              </small>
+            </div>
+            <div className="form-group">
+              <label htmlFor="model_type">Model Type</label>
+              <select
+                id="model_type"
+                name="model_type"
+                className="form-select"
+                value={formData.model_type}
+                onChange={handleChange}
+                disabled={isLoading}
+              >
+                <option value="llama">Llama (GGUF)</option>
+              </select>
+              <small>Type of the model architecture.</small>
+            </div>
+            <h4 className="config-header">Configuration Parameters</h4>
+            <div className="config-grid">
+              <div className="form-group">
+                <label htmlFor="context_window">Context Window</label>
+                <input
+                  type="number"
+                  id="context_window"
+                  name="context_window"
+                  className="form-input"
+                  value={formData.context_window}
+                  onChange={handleChange}
+                  min="1"
+                  step="1"
+                  disabled={isLoading}
+                  placeholder="e.g., 2048"
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="n_threads">CPU Threads</label>
+                <input
+                  type="number"
+                  id="n_threads"
+                  name="n_threads"
+                  className="form-input"
+                  value={formData.n_threads}
+                  onChange={handleChange}
+                  min="1"
+                  step="1"
+                  disabled={isLoading}
+                  placeholder="e.g., 4"
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="n_gpu_layers">GPU Layers</label>
+                <input
+                  type="number"
+                  id="n_gpu_layers"
+                  name="n_gpu_layers"
+                  className="form-input"
+                  value={formData.n_gpu_layers}
+                  onChange={handleChange}
+                  min="0"
+                  step="1"
+                  disabled={isLoading}
+                  placeholder="e.g., 0 (CPU) or 35"
+                />
+                <small>
+                  Number of layers to offload to GPU (if available).
+                </small>
+              </div>
+              <div className="form-group">
+                <label htmlFor="temperature">Temperature</label>
+                <input
+                  type="number"
+                  id="temperature"
+                  name="temperature"
+                  className="form-input"
+                  value={formData.temperature}
+                  onChange={handleChange}
+                  min="0"
+                  max="2"
+                  step="0.1"
+                  disabled={isLoading}
+                  placeholder="e.g., 0.7"
+                />
+              </div>
+            </div>
+            <h4 className="config-header">Advanced Options</h4>
+            <div className="checkbox-group">
+              <label htmlFor="keep_file_on_error">
+                <input
+                  type="checkbox"
+                  id="keep_file_on_error"
+                  name="keep_file_on_error"
+                  checked={formData.keep_file_on_error}
+                  onChange={handleChange}
+                  disabled={isLoading}
+                />
+                Keep downloaded file on error
+              </label>
+            </div>
+            <div className="checkbox-group">
+              <label htmlFor="auto_correct_type">
+                <input
+                  type="checkbox"
+                  id="auto_correct_type"
+                  name="auto_correct_type"
+                  checked={formData.auto_correct_type}
+                  onChange={handleChange}
+                  disabled={isLoading}
+                />
+                Auto-correct model type (if possible)
+              </label>
+            </div>
+            <div className="checkbox-group">
+              <label htmlFor="download_only">
+                <input
+                  type="checkbox"
+                  id="download_only"
+                  name="download_only"
+                  checked={formData.download_only}
+                  onChange={handleChange}
+                  disabled={isLoading}
+                />
+                Download only (do not load into memory yet)
+              </label>
+              <small>
+                If checked, the model will be downloaded but not immediately
+                loaded for use.
+              </small>
+            </div>
+          </div>
+          <div className="modal-footer">
+            <button
+              type="button"
+              className="cancel-button"
+              onClick={onClose}
+              disabled={isLoading}
+            >
+              Cancel
+            </button>
+            <button type="submit" className="save-button" disabled={isLoading}>
+              {isLoading ? <FiLoader className="spin-icon" /> : "Add LLM"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
 export default AdminDashboard;

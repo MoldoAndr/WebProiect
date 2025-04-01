@@ -16,7 +16,12 @@ class LLMManagerService:
         logger.info(f"LLMManager service initialized with base URL: {self.base_url}")
         
         self.request_queue: asyncio.Queue[Tuple[str, str, asyncio.Future, str]] = asyncio.Queue()
-        self._worker_task = asyncio.create_task(self._process_queue())
+        self._worker_task = None
+
+    async def start_worker(self):
+        """Start the background worker if it hasn't been started yet."""
+        if self._worker_task is None:
+            self._worker_task = asyncio.create_task(self._process_queue())
     
     async def _process_queue(self):
         """Background worker that processes requests from the queue sequentially."""
@@ -108,7 +113,6 @@ class LLMManagerService:
             response.raise_for_status()
             return response.json()
 
-    
     async def get_conversation(self, conversation_id: str) -> Dict[str, Any]:
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.get(f"{self.base_url}/api/conversation/{conversation_id}")
@@ -221,5 +225,51 @@ class LLMManagerService:
         except Exception as e:
             logger.error(f"Failed to sync LLMs to database: {e}")
             return {"success": False, "error": str(e)}
+
+    async def sync_all_conversations_with_llm_manager(self) -> Dict[str, Any]:
+        """
+        Fetches ALL conversations from the database and attempts to sync them
+        with the LLM Manager service. Useful for startup or periodic checks.
+        """
+        logger.info("Starting global sync of ALL conversations with LLM Manager.")
+        synced_count = 0
+        error_count = 0
+        total_processed = 0
+        try:
+            from app.core.db import get_database # Local import ok here
+            db = await get_database()
+            conversations_cursor = db.conversations.find(
+                {}, # Find all conversations
+                {"_id": 1, "llm_id": 1, "user_id": 1} # Fetch necessary fields
+            )
+
+            # Note: This could be a very large number of conversations.
+            # Consider adding limits, pagination, or batching if performance is an issue.
+            async for conv in conversations_cursor:
+                total_processed += 1
+                conversation_id = str(conv.get("_id"))
+                model_id = conv.get("llm_id")
+                user_id = conv.get("user_id") # For logging context
+
+                if not conversation_id or not model_id:
+                    logger.warning(f"[Global Sync] Skipping conversation due to missing data: {conv}")
+                    continue
+
+                try:
+                    # Assume create_conversation is idempotent
+                    # logger.debug(f"[Global Sync] Syncing conv_id={conversation_id} (model: {model_id}, user: {user_id})") # Too verbose maybe
+                    await self.create_conversation(model_id, conversation_id)
+                    synced_count += 1
+                except Exception as sync_exc:
+                    error_count += 1
+                    logger.error(f"[Global Sync] Error syncing conv_id={conversation_id} (user: {user_id}): {sync_exc}", exc_info=False)
+
+            logger.info(f"Global conversation sync finished. Processed: {total_processed}, Synced/Ensured: {synced_count}, Errors: {error_count}")
+            return {"success": True, "processed": total_processed, "synced": synced_count, "errors": error_count}
+
+        except Exception as e:
+            logger.error(f"Major error during global conversation sync: {e}", exc_info=True)
+            return {"success": False, "error": str(e), "processed": total_processed, "synced": synced_count, "errors": error_count}
+
 
 llm_manager_service = LLMManagerService()

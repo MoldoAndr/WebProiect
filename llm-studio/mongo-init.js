@@ -13,7 +13,6 @@ db.users.createIndex({ "email": 1 }, { unique: true });
 db.conversations.createIndex({ "user_id": 1 });
 db.messages.createIndex({ "conversation_id": 1 });
 
-// Create initial admin user
 db.users.insertOne({
     username: "admin",
     email: "admin@llmstudio.com",
@@ -25,7 +24,6 @@ db.users.insertOne({
     updated_at: new Date()
 });
 
-// Create initial user
 db.users.insertOne({
     username: "user",
     email: "user@llmstudio.com",

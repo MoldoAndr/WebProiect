@@ -15,15 +15,20 @@ from app.core.security import decode_token
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
+async def send_error_and_close(websocket: WebSocket, error_message: str) -> None:
+    """Helper to send an error JSON message and close the WebSocket."""
+    await websocket.send_json({"type": "error", "error": error_message})
+    await websocket.close()
+
 @router.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket):
+async def websocket_endpoint(websocket: WebSocket) -> None:
     logger.info("Incoming WebSocket connection request.")
 
+    # Validate token from query parameters
     token = websocket.query_params.get("token")
     if not token:
         logger.warning("No token provided. Closing connection.")
-        await websocket.send_json({"type": "error", "error": "Missing authentication token"})
-        await websocket.close()
+        await send_error_and_close(websocket, "Missing authentication token")
         return
 
     try:
@@ -31,15 +36,15 @@ async def websocket_endpoint(websocket: WebSocket):
         user_id = payload.get("sub")
         if not user_id:
             logger.warning("Invalid token data: 'sub' field missing.")
-            await websocket.send_json({"type": "error", "error": "Invalid token data"})
-            await websocket.close()
+            await send_error_and_close(websocket, "Invalid token data")
             return
+
+        # Attach user_id to the WebSocket state for future use
         websocket.state.user_id = user_id
         logger.info(f"Token validated for user_id={user_id}")
-    except Exception as e:
+    except Exception:
         logger.exception("Exception during token validation.")
-        await websocket.send_json({"type": "error", "error": "Authentication failed, please refresh token"})
-        await websocket.close()
+        await send_error_and_close(websocket, "Authentication failed, please refresh token")
         return
 
     client_id = str(uuid.uuid4())
@@ -51,11 +56,12 @@ async def websocket_endpoint(websocket: WebSocket):
         while True:
             raw_text = await websocket.receive_text()
             logger.info(f"Received raw message: {raw_text}")
+
             try:
                 message = json.loads(raw_text)
             except json.JSONDecodeError:
                 logger.error("Received invalid JSON")
-                await websocket.send_json({"type": "error", "error": "Invalid JSON format"})
+                await send_error_and_close(websocket, "Invalid JSON format")
                 continue
 
             message_type = message.get("type")
@@ -67,20 +73,19 @@ async def websocket_endpoint(websocket: WebSocket):
             elif message_type == "conversation_create":
                 logger.info("Dispatching to handle_conversation_create")
                 await handle_conversation_create(client_id, user_id, message, websocket)
-            else:
-                if message_type != "ping":
-                    logger.warning(f"Unknown message type: {message_type}")
-                    await websocket.send_json({
-                        "type": "error",
-                        "error": f"Unknown message type: {message_type}"
-                    })
+            elif message_type != "ping":
+                logger.warning(f"Unknown message type: {message_type}")
+                await websocket.send_json({
+                    "type": "error",
+                    "error": f"Unknown message type: {message_type}"
+                })
     except WebSocketDisconnect as e:
         logger.info(
             f"WebSocket disconnected: client_id={client_id}, user_id={user_id}, "
             f"code={e.code}, reason='{e.reason}'"
         )
         connection_manager.disconnect(client_id)
-    except Exception as e:
+    except Exception:
         logger.exception(f"Error in WebSocket loop for client_id={client_id}")
         await websocket.close()
     finally:
