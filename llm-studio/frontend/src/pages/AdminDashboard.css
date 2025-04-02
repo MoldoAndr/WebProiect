@@ -265,11 +265,11 @@ body {
   flex-shrink: 0; /* Prevent icon shrinking */
 }
 
-/* --- Main Content Area --- */
 .admin-main {
   flex-grow: 1; /* Take remaining width */
   padding: 1.5rem 2rem; /* Padding around content */
   overflow-y: auto; /* Allow scrolling if content overflows */
+  background-color: transparent !important; 
 }
 
 /* --- Section Styles --- */
@@ -976,6 +976,7 @@ body {
         flex-shrink: 0; /* Prevent nav items shrinking */
     }
     .admin-main {
+        background-color: transparent !important; 
         padding: 1.5rem; /* Adjust padding */
     }
 }

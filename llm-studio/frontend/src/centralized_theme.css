@@ -852,11 +852,6 @@ button {
   overflow: hidden;
 }
 
-.admin-main {
-  flex: 1;
-  overflow-y: auto;
-  padding: 1.5rem;
-}
 
 .message {
   margin-bottom: 1.5rem;
@@ -1701,10 +1696,6 @@ button {
   
   .admin-subtitle {
     display: none;
-  }
-  
-  .admin-main {
-    padding: 1rem;
   }
   
   .section-header {

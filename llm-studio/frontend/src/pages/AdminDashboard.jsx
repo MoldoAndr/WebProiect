@@ -670,43 +670,13 @@ const AdminDashboard = () => {
               {activeSection === "llms" && (
                 <section className="admin-section">
                   <div className="section-header">
-                    <h2 className="section-title">LLM Management</h2>
-                    <div>
-                      <button
-                        className="action-button refresh-button"
-                        onClick={loadLLMs}
-                        disabled={isLoading.llms}
-                        style={{ marginRight: "10px", marginTop: "10px" }}
-                      >
-                        <FiRefreshCw
-                          className={isLoading.llms ? "spin-icon" : ""}
-                        />{" "}
-                        Refresh LLMs
-                      </button>
-                      <button
-                        className="action-button"
-                        onClick={handleOpenAddLLMModal}
-                        disabled={isMutating}
-                      >
-                        <FiPlus /> Add LLM
-                      </button>
-                    </div>
+                    <h2 className="section-title">LLM Models Viewer</h2>
                   </div>
                   <div className="llm-cards">
                     {filteredLLMs.map((llm) => (
                       <div key={llm.id} className="llm-card">
                         <div className="llm-card-header">
                           <h3 className="llm-name">{llm.model_id || llm.id}</h3>
-                          <div className="llm-actions">
-                            <button
-                              className="action-icon delete-icon"
-                              onClick={() => handleDeleteLLM(llm.id)} // Use the main unique ID for deletion
-                              title="Delete LLM"
-                              disabled={isMutating}
-                            >
-                              <FiTrash2 />
-                            </button>
-                          </div>
                         </div>
                         <div className="llm-provider">
                           {" "}

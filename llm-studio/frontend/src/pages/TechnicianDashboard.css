@@ -1,5 +1,8 @@
 body {
   background-image: url("../utils/technician_background.png");
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
 }
 
 .technician-dashboard {
@@ -9,7 +12,7 @@ body {
   background-attachment: fixed;
   padding: 1rem;
   color: #e2e8f0;
-  min-height: calc(100vh - 60px); /* Account for header height */
+  min-height: calc(100vh - 60px);
 }
 
 .technician-header {
@@ -19,6 +22,14 @@ body {
   margin-bottom: 1.5rem;
   flex-wrap: wrap;
   gap: 1rem;
+}
+
+.technician-content
+{
+  background-image: linear-gradient(to top, rgba(19, 21, 26, 0), #0e1116 75%), url("../utils/technician_background.png");
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
 }
 
 .back-section {
@@ -783,4 +794,57 @@ body {
   .user-role {
     display: none;
   }
+}
+
+/* In your AdminDashboard.css or relevant CSS file */
+
+.admin-dashboard.technician-dashboard {
+  /* Your existing background styles here... */
+  background-image: linear-gradient(to top, rgba(19, 21, 26, 0), #0e1116 75%), url("../utils/technician_background.png");
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+  padding: 0; /* Remove padding from root if background should go edge-to-edge */
+  color: #e2e8f0;
+  min-height: 100vh; /* Ensure it covers viewport height */
+  display: flex; /* Add flex to manage header/content layout */
+  flex-direction: column; /* Stack header and content vertically */
+}
+
+.admin-header {
+  /* Ensure header doesn't have an opaque background unless intended */
+   background-color: rgba(14, 17, 22, 0.8); /* Example: slightly transparent dark header */
+   backdrop-filter: blur(5px); /* Optional: nice effect for transparent header */
+   padding: 0.75rem 1.5rem; /* Adjust padding as needed */
+   position: sticky; /* Make header sticky? */
+   top: 0;
+   z-index: 10; /* Ensure header is above content */
+   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.admin-content {
+  flex-grow: 1; /* Allow content to fill remaining space */
+  background-color: transparent !important; /* Make absolutely sure it's transparent */
+  display: flex; /* Needed if admin-main needs to grow */
+}
+
+.admin-main {
+  flex-grow: 1; /* Take remaining width/height within admin-content */
+  padding: 1.5rem 2rem;
+  overflow-y: auto;
+  background-color: transparent !important; /* Also ensure this is transparent */
+}
+
+/* Adjust card opacity if needed */
+.llm-card {
+  background-color: rgba(26, 32, 44, 0.8); /* Slightly more opaque? Or less? */
+  /* ... other styles ... */
+}
+
+/* Ensure the body doesn't interfere */
+body {
+   margin: 0; /* Remove default body margin */
+   /* Remove the body background if the dashboard root handles it */
+   /* background-image: url("../utils/technician_background.png"); */
+   background-color: #0e1116; /* Fallback solid color */
 }

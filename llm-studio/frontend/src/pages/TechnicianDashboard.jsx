@@ -573,7 +573,7 @@ const TechnicianDashboard = () => {
   // Main Technician Dashboard Render
   return (
     // Using AdminDashboard CSS classes for consistency
-    <div className="admin-dashboard">
+    <div className="technician-dashboard">
       {/* Reusing Admin Header Structure for Consistency */}
       <header className="admin-header">
         <div className="admin-header-left">
@@ -644,7 +644,7 @@ const TechnicianDashboard = () => {
       {/* Use admin-content structure */}
       <div className="admin-content technician-content"> {/* Added technician-content for potential specific styles */}
         {/* No sidebar needed for Technician view? Or adapt if needed */}
-        <main className="admin-main full-width"> {/* Use full-width if no sidebar */}
+        <main className="admin-main full-width" > {/* Use full-width if no sidebar */}
           {isSectionLoading || isMutating ? (
             <div className="loading-spinner">
               <FiLoader className="spin-icon" />{" "}
