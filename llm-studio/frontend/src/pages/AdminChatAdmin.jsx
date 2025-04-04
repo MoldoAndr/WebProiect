@@ -6,16 +6,17 @@ import {
   FiInfo,
   FiAlertCircle,
   FiMessageCircle,
-  FiLoader, // Added for loading indicators
-  FiPlus, // Icon for New Ticket button
+  FiLoader,
+  FiX,
+  FiRepeat,
 } from "react-icons/fi";
 import { useAuth } from "../hooks/useAuth";
 import { adminChatService } from "../services/admin-chat.service";
 import { toast } from "react-toastify";
 import DashboardHeader from "../components/dashboard/DashboardHeader";
-import "./AdminChat.css";
+import "./AdminChatAdmin.css"; // Ensure this file exists and styles the admin chat page
 
-const AdminChat = () => {
+const AdminChatAdmin = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
 
@@ -24,40 +25,33 @@ const AdminChat = () => {
   const [newMessage, setNewMessage] = useState("");
   const [isLoadingTickets, setIsLoadingTickets] = useState(true);
   const [isSending, setIsSending] = useState(false);
-  const [isCreating, setIsCreating] = useState(false);
-  const [newTicketSubject, setNewTicketSubject] = useState("");
-  const [showNewTicketForm, setShowNewTicketForm] = useState(false);
+  const [isUpdatingTicket, setIsUpdatingTicket] = useState(false);
   const [error, setError] = useState(null);
 
   const messagesEndRef = useRef(null);
 
-  // --- Data Fetching ---
+  // Fetch all tickets using the admin endpoint
   const fetchTickets = useCallback(async () => {
     setIsLoadingTickets(true);
     setError(null);
-
     try {
-      const response = await adminChatService.getUserTickets();
-
-      // If your server returns an array of tickets with a property "_id",
-      // map them to have "id" so the rest of the code is consistent.
+      const response = await adminChatService.getAdminTickets();
       if (Array.isArray(response)) {
         const normalizedTickets = response.map((t) => ({
           ...t,
-          id: t._id || t.id, // Prefer _id if it exists, else use id
+          id: t._id || t.id,
         }));
         setTickets(normalizedTickets);
       } else {
-        console.warn("API response for tickets was not an array:", response);
-        setError("Received invalid data format for tickets.");
+        setError("Invalid data format for tickets.");
         setTickets([]);
         toast.error("Failed to load tickets: Invalid data format.");
       }
     } catch (err) {
       console.error("Error fetching tickets:", err);
-      setError("Failed to load support tickets. Please try again later.");
+      setError("Failed to load tickets. Please try again later.");
       setTickets([]);
-      toast.error("Failed to load support tickets.");
+      toast.error("Failed to load tickets.");
     } finally {
       setIsLoadingTickets(false);
     }
@@ -67,26 +61,21 @@ const AdminChat = () => {
     fetchTickets();
   }, [fetchTickets]);
 
-  // --- Ticket Selection ---
-  const selectedTicket = tickets.find(
-    (ticket) => ticket.id === selectedTicketId
-  );
+  const selectedTicket = tickets.find((ticket) => ticket.id === selectedTicketId);
 
-  // --- Scroll to bottom on messages update ---
+  // Scroll to bottom on messages update
   useEffect(() => {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
   }, [selectedTicket?.messages]);
 
-  // --- Helper: format date safely ---
+  // Helper function to format dates
   const formatDate = (dateString) => {
     if (!dateString) return "Invalid Date";
     try {
       const date = new Date(dateString);
-      if (isNaN(date.getTime())) {
-        return "Invalid Date";
-      }
+      if (isNaN(date.getTime())) return "Invalid Date";
       return date.toLocaleString(undefined, {
         year: "numeric",
         month: "short",
@@ -100,44 +89,28 @@ const AdminChat = () => {
     }
   };
 
-  // --- Handlers ---
   const handleBackToDashboard = () => {
     navigate("/dashboard");
   };
 
-  const handleSendMessage = async () => {
-    console.log("handleSendMessage called");
-    console.log("Current state:", {
-      newMessage,
-      selectedTicketId,
-      isSending,
-      user,
-    });
-
-    if (!newMessage.trim() || !selectedTicketId || isSending) {
-      console.log("Early return due to:", {
-        noMessage: !newMessage.trim(),
-        noTicket: !selectedTicketId,
-        isSending,
-      });
-      return;
-    }
-
+  // Handle sending an admin message
+  const handleSendAdminMessage = async () => {
+    if (!newMessage.trim() || !selectedTicketId || isSending) return;
     setIsSending(true);
     const optimisticId = `optimistic-${Date.now()}`;
     const contentToSend = newMessage;
 
     const optimisticMessage = {
       id: optimisticId,
-      user_id: user?.id || "unknown-user",
-      role: "user",
-      is_admin: false,
+      user_id: selectedTicket?.user_id || "unknown",
+      is_admin: true,
+      admin_name: user?.full_name || user?.username,
       content: contentToSend,
       created_at: new Date().toISOString(),
       optimistic: true,
     };
 
-    // Optimistic UI: immediately show the message
+    // Optimistic UI update
     setTickets((prevTickets) =>
       prevTickets.map((ticket) => {
         if (ticket.id === selectedTicketId) {
@@ -152,21 +125,18 @@ const AdminChat = () => {
     setNewMessage("");
 
     try {
-      const savedMessage = await adminChatService.addUserMessage(
+      const savedMessage = await adminChatService.addAdminMessage(
         selectedTicketId,
         contentToSend
       );
-
-      // Replace optimistic message with the real one from the server
+      // Replace the optimistic message with the server response
       setTickets((prevTickets) =>
         prevTickets.map((ticket) => {
           if (ticket.id === selectedTicketId) {
             return {
               ...ticket,
               messages: (ticket.messages || []).map((msg) =>
-                msg.id === optimisticId
-                  ? { ...savedMessage, optimistic: false }
-                  : msg
+                msg.id === optimisticId ? { ...savedMessage, optimistic: false } : msg
               ),
               updated_at: savedMessage.created_at,
             };
@@ -175,18 +145,16 @@ const AdminChat = () => {
         })
       );
     } catch (error) {
-      console.error("Error sending message:", error);
+      console.error("Error sending admin message:", error);
       toast.error("Failed to send message. Please try again.");
-      // Mark the optimistic message as failed
+      // Mark the optimistic message as error
       setTickets((prevTickets) =>
         prevTickets.map((ticket) => {
           if (ticket.id === selectedTicketId) {
             return {
               ...ticket,
               messages: (ticket.messages || []).map((msg) =>
-                msg.id === optimisticId
-                  ? { ...msg, error: true, optimistic: false }
-                  : msg
+                msg.id === optimisticId ? { ...msg, error: true, optimistic: false } : msg
               ),
             };
           }
@@ -198,46 +166,48 @@ const AdminChat = () => {
     }
   };
 
-  const handleCreateTicket = async () => {
-    if (!newTicketSubject.trim() || isCreating) return;
-
-    setIsCreating(true);
-    setError(null);
-    const subjectToSend = newTicketSubject;
-
+  // Handle closing a ticket
+  const handleCloseTicket = async () => {
+    if (!selectedTicketId || isUpdatingTicket) return;
+    setIsUpdatingTicket(true);
     try {
-      // Create the ticket on the server
-      const newTicketResponse = await adminChatService.createTicket(
-        subjectToSend,
-        null
+      const closedTicket = await adminChatService.closeTicket(selectedTicketId);
+      // Update the ticket status in state
+      setTickets((prevTickets) =>
+        prevTickets.map((ticket) =>
+          ticket.id === selectedTicketId ? { ...ticket, status: closedTicket.status } : ticket
+        )
       );
-
-      // Normalize the ticket so it has .id
-      const newTicket = {
-        ...newTicketResponse,
-        id: newTicketResponse._id || newTicketResponse.id,
-      };
-
-      // Add the new ticket to the top of the list
-      setTickets((prevTickets) => [newTicket, ...prevTickets]);
-
-      // Auto-select it
-      setSelectedTicketId(newTicket.id);
-
-      // Clear form
-      setNewTicketSubject("");
-      setShowNewTicketForm(false);
-      toast.success("New support ticket created successfully!");
+      toast.success("Ticket closed successfully.");
     } catch (error) {
-      console.error("Error creating ticket:", error);
-      setError("Failed to create ticket. Please try again.");
-      toast.error("Failed to create ticket. Please try again.");
+      console.error("Error closing ticket:", error);
+      toast.error("Failed to close ticket.");
     } finally {
-      setIsCreating(false);
+      setIsUpdatingTicket(false);
     }
   };
 
-  // --- Render ---
+  // Handle reopening a ticket
+  const handleReopenTicket = async () => {
+    if (!selectedTicketId || isUpdatingTicket) return;
+    setIsUpdatingTicket(true);
+    try {
+      const reopenedTicket = await adminChatService.reopenTicket(selectedTicketId);
+      // Update the ticket status in state
+      setTickets((prevTickets) =>
+        prevTickets.map((ticket) =>
+          ticket.id === selectedTicketId ? { ...ticket, status: reopenedTicket.status } : ticket
+        )
+      );
+      toast.success("Ticket reopened successfully.");
+    } catch (error) {
+      console.error("Error reopening ticket:", error);
+      toast.error("Failed to reopen ticket.");
+    } finally {
+      setIsUpdatingTicket(false);
+    }
+  };
+
   return (
     <div className="dashboard-container">
       <DashboardHeader user={user} />
@@ -274,56 +244,11 @@ const AdminChat = () => {
 
           {/* Sidebar Header */}
           <div className="admin-chat-sidebar-header" style={{ flexShrink: 0 }}>
-            <h2>Tickets</h2>
-            <button
-              className="new-ticket-button"
-              onClick={() => setShowNewTicketForm(!showNewTicketForm)}
-              disabled={isCreating}
-            >
-              <FiPlus size={18} />
-              <span>New Ticket</span>
-            </button>
+            <h2>All Support Tickets</h2>
           </div>
 
-          {/* New Ticket Form */}
-          {showNewTicketForm && (
-            <div className="new-ticket-form" style={{ flexShrink: 0 }}>
-              <input
-                type="text"
-                placeholder="Enter ticket subject..."
-                value={newTicketSubject}
-                onChange={(e) => setNewTicketSubject(e.target.value)}
-                className="new-ticket-input"
-                disabled={isCreating}
-              />
-              <div className="new-ticket-actions">
-                <button
-                  className="cancel-button"
-                  onClick={() => setShowNewTicketForm(false)}
-                  disabled={isCreating}
-                >
-                  Cancel
-                </button>
-                <button
-                  className="create-button"
-                  onClick={handleCreateTicket}
-                  disabled={!newTicketSubject.trim() || isCreating}
-                >
-                  {isCreating ? (
-                    <FiLoader className="spinner" size={16} />
-                  ) : (
-                    "Create"
-                  )}
-                </button>
-              </div>
-            </div>
-          )}
-
           {/* Tickets List */}
-          <div
-            className="tickets-list"
-            style={{ flexGrow: 1, overflowY: "auto" }}
-          >
+          <div className="tickets-list" style={{ flexGrow: 1, overflowY: "auto" }}>
             {isLoadingTickets ? (
               <div className="loading-placeholder">
                 <FiLoader className="spinner" size={24} />
@@ -340,7 +265,7 @@ const AdminChat = () => {
             ) : tickets.length === 0 ? (
               <div className="empty-placeholder">
                 <FiInfo size={24} />
-                <span>No tickets found. Create one to start.</span>
+                <span>No tickets found.</span>
               </div>
             ) : (
               tickets.map((ticket) => (
@@ -390,20 +315,49 @@ const AdminChat = () => {
                     <span className="ticket-date">
                       Created: {formatDate(selectedTicket.created_at)}
                     </span>
-                    {selectedTicket.updated_at !==
-                      selectedTicket.created_at && (
+                    {selectedTicket.updated_at !== selectedTicket.created_at && (
                       <span className="ticket-date">
                         Updated: {formatDate(selectedTicket.updated_at)}
                       </span>
                     )}
                   </div>
                 </div>
+                <div className="admin-chat-actions">
+                  {selectedTicket.status !== "closed" ? (
+                    <button
+                      className="close-ticket-button"
+                      onClick={handleCloseTicket}
+                      disabled={isUpdatingTicket}
+                      title="Close Ticket"
+                    >
+                      <FiX size={16} />
+                      {isUpdatingTicket ? (
+                        <FiLoader className="spinner" size={16} />
+                      ) : (
+                        "Close Ticket"
+                      )}
+                    </button>
+                  ) : (
+                    <button
+                      className="reopen-ticket-button"
+                      onClick={handleReopenTicket}
+                      disabled={isUpdatingTicket}
+                      title="Reopen Ticket"
+                    >
+                      <FiRepeat size={16} />
+                      {isUpdatingTicket ? (
+                        <FiLoader className="spinner" size={16} />
+                      ) : (
+                        "Reopen Ticket"
+                      )}
+                    </button>
+                  )}
+                </div>
               </div>
 
               {/* Messages */}
               <div className="admin-chat-messages">
-                {!selectedTicket.messages ||
-                selectedTicket.messages.length === 0 ? (
+                {!selectedTicket.messages || selectedTicket.messages.length === 0 ? (
                   <div className="no-messages">
                     <FiInfo size={48} />
                     <p>No messages yet. Start the conversation!</p>
@@ -441,15 +395,12 @@ const AdminChat = () => {
                 <div ref={messagesEndRef} />
               </div>
 
-              {/* Input Area */}
+              {/* Input Area for Admin Message */}
               <div className="admin-chat-input">
                 {selectedTicket.status === "closed" ? (
                   <div className="ticket-closed-message">
                     <FiAlertCircle size={20} />
-                    <span>
-                      This ticket is closed. Create a new one for further
-                      assistance.
-                    </span>
+                    <span>This ticket is closed. Reopen it to send messages.</span>
                   </div>
                 ) : (
                   <>
@@ -462,16 +413,13 @@ const AdminChat = () => {
                       onKeyDown={(e) => {
                         if (e.key === "Enter" && !e.shiftKey) {
                           e.preventDefault();
-                          handleSendMessage();
+                          handleSendAdminMessage();
                         }
                       }}
                     />
                     <button
                       className="send-button"
-                      onClick={() => {
-                        console.log("Send button clicked");
-                        handleSendMessage();
-                      }}
+                      onClick={handleSendAdminMessage}
                       disabled={!newMessage.trim() || isSending}
                     >
                       {isSending ? (
@@ -486,19 +434,9 @@ const AdminChat = () => {
             </>
           ) : (
             <div className="empty-state">
-              <FiMessageCircle
-                size={48}
-                style={{ marginBottom: "1rem", opacity: 0.7 }}
-              />
-              <h2>Talk with an Administrator</h2>
-              <p>Select a ticket or create a new one.</p>
-              <button
-                className="new-ticket-button large"
-                onClick={() => setShowNewTicketForm(true)}
-                disabled={isCreating}
-              >
-                <FiPlus size={18} /> Create New Ticket
-              </button>
+              <FiMessageCircle size={48} style={{ marginBottom: "1rem", opacity: 0.7 }} />
+              <h2>Manage Support Tickets</h2>
+              <p>Select a ticket to view details and communicate with the user.</p>
             </div>
           )}
         </div>
@@ -507,4 +445,4 @@ const AdminChat = () => {
   );
 };
 
-export default AdminChat;
+export default AdminChatAdmin;

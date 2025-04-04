@@ -4,7 +4,6 @@ import { useWebSocket } from '../hooks/useWebSocket';
 import { useAuth } from '../hooks/useAuth';
 import { toast } from 'react-toastify';
 
-// Create context
 const WebSocketContext = createContext(null);
 
 export const WebSocketProvider = ({ children }) => {
@@ -25,9 +24,7 @@ export const WebSocketProvider = ({ children }) => {
     if (!isConnected) return;
     
     const removeListener = addMessageListener((data) => {
-      // Handle specific message types
       if (data.type === 'pong') {
-        // Ping/pong keep-alive, no action needed
         return;
       }
       

@@ -6,12 +6,21 @@ db.createCollection('users');
 db.createCollection('llms');
 db.createCollection('conversations');
 db.createCollection('messages');
+db.createCollection('tickets');
+db.createCollection('admin_messages');
 
 // Create indexes
 db.users.createIndex({ "username": 1 }, { unique: true });
 db.users.createIndex({ "email": 1 }, { unique: true });
 db.conversations.createIndex({ "user_id": 1 });
 db.messages.createIndex({ "conversation_id": 1 });
+
+// --- Add Admin Chat Indexes ---
+db.tickets.createIndex({ "user_id": 1 });
+db.tickets.createIndex({ "status": 1 });
+db.tickets.createIndex({ "updated_at": -1 }); // Good for sorting
+db.admin_messages.createIndex({ "ticket_id": 1 });
+db.admin_messages.createIndex({ "created_at": 1 }); // Good for sorting messages
 
 db.users.insertOne({
     username: "admin",

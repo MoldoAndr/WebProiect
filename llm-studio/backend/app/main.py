@@ -7,6 +7,7 @@ from app.core.db import connect_to_mongo, close_mongo_connection
 from app.routes import auth, users, conversations
 from app.routes import llm_manager
 from app.routes import websocket
+from app.routes import admin_chat
 
 logging.basicConfig(
     level=getattr(logging, settings.LOG_LEVEL.upper()),
@@ -43,6 +44,7 @@ app.include_router(users, prefix=f"{settings.API_V1_STR}/users", tags=["users"])
 app.include_router(conversations, prefix=f"{settings.API_V1_STR}/conversations", tags=["conversations"])
 app.include_router(llm_manager.router, prefix=f"{settings.API_V1_STR}/llm-manager", tags=["llm-manager"])
 app.include_router(websocket.router, tags=["websocket"])
+app.include_router(admin_chat.router, prefix=f"{settings.API_V1_STR}/admin-chat", tags=["admin-chat"])
 
 @app.get("/health")
 async def health_check():

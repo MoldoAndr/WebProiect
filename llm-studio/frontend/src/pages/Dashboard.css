@@ -411,7 +411,7 @@ body {
   flex-direction: column;
   transition: transform 0.3s ease;
   position: absolute;
-  height: calc(80vh - 1px);
+  height: calc(90vh - 1px);
   top: 10px;
   left: 10px;
   margin: 0;
@@ -485,7 +485,7 @@ body {
   background-color: rgba(26, 32, 44, 0.4);
   overflow-x: hidden;
   overflow-y: auto;
-  max-height: 30vh;
+  max-height:18vh;
 }
 .sidebar-section-title {
   overflow-x: auto;           /* or scroll */
@@ -502,7 +502,7 @@ body {
 .history-container {
   flex: 1;
   overflow-y: auto;
-  max-height: 100%;
+  max-height: 90%;
 }
 
 .history-container::-webkit-scrollbar {
@@ -792,7 +792,7 @@ body {
 }
 
 /* Responsive adjustments */
-@media (max-width: 768px) {
+@media (max-width: 820px) {
   .sidebar.open~.main-content {
     margin-left: 0;
   }
@@ -1017,15 +1017,6 @@ body {
   /* Push to bottom */
 }
 
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 8px;
-  overflow-y: auto;
-  overflow-x: hidden;
-  padding-right: 5px;
-}
-
 .stats-item {
   display: flex;
   flex-direction: column;
@@ -1033,15 +1024,17 @@ body {
 }
 
 .stats-card {
-  padding: 0.6rem;
+  padding: 0.5rem;
   background-color: rgba(45, 55, 72, 0.3);
-  border-radius: 1rem;
+  border-radius: 0.75rem;
   display: flex;
   flex-direction: column;
   align-items: center;
-  overflow: scroll;
-  text-overflow: hidden;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
+  min-width: 0;
+  max-height: 100%;
 }
 
 .stats-icon {
@@ -1051,12 +1044,13 @@ body {
 }
 
 .stats-value {
-  font-size: 1rem;
+  font-size: 0.9rem;
   font-weight: 600;
   color: var(--text-light);
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
+  max-height: 100%;
 }
 
 .stats-label {

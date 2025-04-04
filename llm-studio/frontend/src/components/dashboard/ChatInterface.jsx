@@ -235,9 +235,9 @@ const ChatInterface = ({ conversation, isLLMSelected }) => {
 
       <div className="messages-container">
         {localMessages.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-gray-400">
-            <p className="text-lg mb-2">Start a conversation</p>
-            <p className="text-sm text-center max-w-md">
+          <div className="start-message">
+            <p>Start a conversation</p>
+            <p>
               Type a message below to start chatting with the selected LLM.
             </p>
           </div>
@@ -274,6 +274,7 @@ const ChatInterface = ({ conversation, isLLMSelected }) => {
             className="send-button"
             disabled={!conversation || !input.trim() || isTyping}
             aria-label="Send message"
+            onClick={handleSubmit}
           >
             <FiSend size={18} />
           </button>

@@ -68,6 +68,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> User:
         payload = decode_token(token)
         user_id: str = payload.get("sub")
         
+        
         if user_id is None:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,

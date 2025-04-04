@@ -1,6 +1,6 @@
 #!/bin/bash
 set -e
-
+sleep 5
 # Wait for MongoDB to be available (without extra options)
 # (If you need a timeout, you can extend the script, but here we keep it simple.)
 /usr/local/bin/wait-for-it mongodb 27017

@@ -143,6 +143,7 @@
 .settings-content {
   padding: 1.5rem;
   max-height: 70vh;
+  max-width: 98%;
   overflow-y: auto;
 }
 
@@ -188,21 +189,26 @@
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  width: 100%;
 }
 
 .input-with-icon {
   position: relative;
   display: flex;
   align-items: center;
+  width: 100%;
 }
 
 .input-icon {
   position: absolute;
   left: 1rem;
   color: #718096;
+  z-index: 1;
+  pointer-events: none;
 }
 
 .form-input {
+  width: 100%;
   padding: 0.8rem 1rem 0.8rem 2.5rem;
   border: 1px solid #4a5568;
   border-radius: 8px;
@@ -211,6 +217,12 @@
   outline: none;
   transition: all 0.3s ease;
   font-size: 0.95rem;
+  box-sizing: border-box;
+}
+
+/* Add specific padding for inputs without icons */
+.form-group input.form-input:not(.input-with-icon input) {
+  padding: 0.8rem 1rem;
 }
 
 .form-input:focus {
@@ -231,7 +243,9 @@
 textarea.form-input {
   resize: vertical;
   min-height: 80px;
-  padding-left: 1rem;
+  padding: 0.8rem 1rem 0.8rem 2.5rem;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 /* Button styling */

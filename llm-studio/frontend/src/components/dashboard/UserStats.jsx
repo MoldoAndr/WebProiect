@@ -18,12 +18,6 @@ const UserStats = ({ stats }) => {
         <div className="stats-value">{stats.totalMessages}</div>
       </div>
       
-      <div className="stats-card">
-        <div className="flex items-center mb-2">
-          <FiClock className="mr-2 text-indigo-400" size={20} />
-        </div>
-        <div className="stats-value">{stats.averageResponseTime}s</div>
-      </div>
     </div>
   );
 };

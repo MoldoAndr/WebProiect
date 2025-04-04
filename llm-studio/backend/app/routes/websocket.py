@@ -24,11 +24,10 @@ async def send_error_and_close(websocket: WebSocket, error_message: str) -> None
 async def websocket_endpoint(websocket: WebSocket) -> None:
     logger.info("Incoming WebSocket connection request.")
 
-    # Validate token from query parameters
     token = websocket.query_params.get("token")
     if not token:
         logger.warning("No token provided. Closing connection.")
-        await send_error_and_close(websocket, "Missing authentication token")
+        await websocket.close(code=4401)
         return
 
     try:

@@ -125,7 +125,6 @@ const Dashboard = () => {
         wsCreateConversation(selectedLLM.id, newConversation.id);
       }
 
-      // Option 1: Update local state immediately.
       setConversations([newConversation, ...conversations]);
       setSelectedConversationId(newConversation.id);
 

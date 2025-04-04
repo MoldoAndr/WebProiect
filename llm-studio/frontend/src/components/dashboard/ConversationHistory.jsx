@@ -16,8 +16,8 @@ const ConversationHistory = ({ conversations, selectedConversationId, onConversa
   
   if (!conversations || conversations.length === 0) {
     return (
-      <div style ="padding-top: 6px; padding-left:3px; padding-right: 3px; font-weight: bolder;">
-        No conversations yet. Start a new one!
+      <div className="empty-state">
+      No conversations yet. Start a new one!
       </div>
     );
   }

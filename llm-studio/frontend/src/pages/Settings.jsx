@@ -442,7 +442,6 @@ const Settings = () => {
               <div className="form-group">
                 <label htmlFor="username" className="form-label">Username</label>
                 <div className="input-with-icon">
-                  <FiUser className="input-icon" />
                   <input
                     id="username"
                     name="username"
@@ -459,7 +458,6 @@ const Settings = () => {
               <div className="form-group">
                 <label htmlFor="email" className="form-label">Email</label>
                 <div className="input-with-icon">
-                  <FiMail className="input-icon" />
                   <input
                     id="email"
                     name="email"
@@ -520,7 +518,6 @@ const Settings = () => {
               <div className="form-group">
                 <label htmlFor="currentPassword" className="form-label">Current Password</label>
                 <div className="input-with-icon">
-                  <FiLock className="input-icon" />
                   <input
                     id="currentPassword"
                     name="currentPassword"
@@ -537,7 +534,6 @@ const Settings = () => {
               <div className="form-group">
                 <label htmlFor="newPassword" className="form-label">New Password</label>
                 <div className="input-with-icon">
-                  <FiLock className="input-icon" />
                   <input
                     id="newPassword"
                     name="newPassword"
@@ -554,7 +550,6 @@ const Settings = () => {
               <div className="form-group">
                 <label htmlFor="confirmPassword" className="form-label">Confirm New Password</label>
                 <div className="input-with-icon">
-                  <FiLock className="input-icon" />
                   <input
                     id="confirmPassword"
                     name="confirmPassword"
