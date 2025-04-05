@@ -82,7 +82,7 @@ h2
 /* Main container */
 .admin-chat-container {
   display: flex;
-  height: calc(100vh - var(--header-height));
+  height: calc(100vh - var(--header-height) - 20px);
   overflow: hidden;
   position: relative;
 }
@@ -302,6 +302,34 @@ h2
   border-radius:20px;
 }
 
+
+.close-reopen-button {
+  background-color: var(--accent-blue);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 0.4rem 0.8rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-left: 0.75rem;
+}
+
+.close-reopen-button:hover {
+  background-color: var(--accent-blue-hover);
+  transform: translateY(-1px);
+}
+
+.close-reopen-button:disabled {
+  background-color: var(--border-color);
+  cursor: not-allowed;
+  transform: none;
+}
+
+
 .admin-chat-header {
   display: flex;
   align-items: center;
@@ -412,6 +440,24 @@ h2
   padding: 1rem;
   background-color: var(--card-bg);
   border-radius: 1rem 1rem 1rem 0;
+}
+
+.close-ticket-button,
+.reopen-ticket-button {
+  background-color: var(--accent-blue);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 0.4rem 0.8rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.close-ticket-button:hover,
+.reopen-ticket-button:hover {
+  background-color: var(--accent-blue-hover);
+  transform: translateY(-1px);
 }
 
 .message-meta {

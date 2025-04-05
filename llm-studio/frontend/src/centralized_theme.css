@@ -63,10 +63,6 @@ html, body {
     Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
 }
 
-button {
-  cursor: pointer;
-}
-
 /* ==================== ANIMATIONS ==================== */
 @keyframes fadeIn {
   from {

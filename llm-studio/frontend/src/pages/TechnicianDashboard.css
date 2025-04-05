@@ -831,7 +831,6 @@ body {
 .admin-main {
   flex-grow: 1; /* Take remaining width/height within admin-content */
   padding: 1.5rem 2rem;
-  overflow-y: auto;
   background-color: transparent !important; /* Also ensure this is transparent */
 }
 

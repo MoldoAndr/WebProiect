@@ -268,7 +268,7 @@ body {
 .admin-main {
   flex-grow: 1; /* Take remaining width */
   padding: 1.5rem 2rem; /* Padding around content */
-  overflow-y: auto; /* Allow scrolling if content overflows */
+  overflow-y: hidden;
   background-color: transparent !important; 
 }
 

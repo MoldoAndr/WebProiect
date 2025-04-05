@@ -14,7 +14,7 @@ import { useAuth } from "../hooks/useAuth";
 import { adminChatService } from "../services/admin-chat.service";
 import { toast } from "react-toastify";
 import DashboardHeader from "../components/dashboard/DashboardHeader";
-import "./AdminChatAdmin.css"; // Ensure this file exists and styles the admin chat page
+import "./AdminChat.css";
 
 const AdminChatAdmin = () => {
   const navigate = useNavigate();
@@ -30,7 +30,7 @@ const AdminChatAdmin = () => {
 
   const messagesEndRef = useRef(null);
 
-  // Fetch all tickets using the admin endpoint
+  // Fetch tickets using the admin endpoint
   const fetchTickets = useCallback(async () => {
     setIsLoadingTickets(true);
     setError(null);
@@ -61,9 +61,11 @@ const AdminChatAdmin = () => {
     fetchTickets();
   }, [fetchTickets]);
 
-  const selectedTicket = tickets.find((ticket) => ticket.id === selectedTicketId);
+  const selectedTicket = tickets.find(
+    (ticket) => ticket.id === selectedTicketId
+  );
 
-  // Scroll to bottom on messages update
+  // Scroll to the bottom whenever messages update
   useEffect(() => {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
@@ -110,7 +112,7 @@ const AdminChatAdmin = () => {
       optimistic: true,
     };
 
-    // Optimistic UI update
+    // Optimistically update the UI
     setTickets((prevTickets) =>
       prevTickets.map((ticket) => {
         if (ticket.id === selectedTicketId) {
@@ -129,7 +131,6 @@ const AdminChatAdmin = () => {
         selectedTicketId,
         contentToSend
       );
-      // Replace the optimistic message with the server response
       setTickets((prevTickets) =>
         prevTickets.map((ticket) => {
           if (ticket.id === selectedTicketId) {
@@ -147,14 +148,15 @@ const AdminChatAdmin = () => {
     } catch (error) {
       console.error("Error sending admin message:", error);
       toast.error("Failed to send message. Please try again.");
-      // Mark the optimistic message as error
       setTickets((prevTickets) =>
         prevTickets.map((ticket) => {
           if (ticket.id === selectedTicketId) {
             return {
               ...ticket,
               messages: (ticket.messages || []).map((msg) =>
-                msg.id === optimisticId ? { ...msg, error: true, optimistic: false } : msg
+                msg.id === optimisticId
+                  ? { ...msg, error: true, optimistic: false }
+                  : msg
               ),
             };
           }
@@ -172,7 +174,6 @@ const AdminChatAdmin = () => {
     setIsUpdatingTicket(true);
     try {
       const closedTicket = await adminChatService.closeTicket(selectedTicketId);
-      // Update the ticket status in state
       setTickets((prevTickets) =>
         prevTickets.map((ticket) =>
           ticket.id === selectedTicketId ? { ...ticket, status: closedTicket.status } : ticket
@@ -193,7 +194,6 @@ const AdminChatAdmin = () => {
     setIsUpdatingTicket(true);
     try {
       const reopenedTicket = await adminChatService.reopenTicket(selectedTicketId);
-      // Update the ticket status in state
       setTickets((prevTickets) =>
         prevTickets.map((ticket) =>
           ticket.id === selectedTicketId ? { ...ticket, status: reopenedTicket.status } : ticket
@@ -211,7 +211,6 @@ const AdminChatAdmin = () => {
   return (
     <div className="dashboard-container">
       <DashboardHeader user={user} />
-
       <div className="admin-chat-container">
         {/* Sidebar */}
         <div
@@ -277,9 +276,7 @@ const AdminChatAdmin = () => {
                   onClick={() => setSelectedTicketId(ticket.id)}
                   role="button"
                   tabIndex={0}
-                  onKeyDown={(e) =>
-                    e.key === "Enter" && setSelectedTicketId(ticket.id)
-                  }
+                  onKeyDown={(e) => e.key === "Enter" && setSelectedTicketId(ticket.id)}
                 >
                   <div className="ticket-item-content">
                     <div className="ticket-title">
@@ -325,7 +322,7 @@ const AdminChatAdmin = () => {
                 <div className="admin-chat-actions">
                   {selectedTicket.status !== "closed" ? (
                     <button
-                      className="close-ticket-button"
+                      className="close-reopen-button"
                       onClick={handleCloseTicket}
                       disabled={isUpdatingTicket}
                       title="Close Ticket"
@@ -339,7 +336,7 @@ const AdminChatAdmin = () => {
                     </button>
                   ) : (
                     <button
-                      className="reopen-ticket-button"
+                      className="close-reopen-button"
                       onClick={handleReopenTicket}
                       disabled={isUpdatingTicket}
                       title="Reopen Ticket"

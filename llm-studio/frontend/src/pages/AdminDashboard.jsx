@@ -670,9 +670,6 @@ const AdminDashboard = () => {
   );
 };
 
-// -----------------------------------------------------------------------------
-// AdminChatSection Component (Ticket Operations using adminChatService)
-// -----------------------------------------------------------------------------
 const AdminChatSection = () => {
   const [tickets, setTickets] = useState([]);
   const [selectedTicketId, setSelectedTicketId] = useState(null);
@@ -841,7 +838,7 @@ const AdminChatSection = () => {
   };
 
   return (
-    <div className="admin-chat-container">
+    <div className="admin-chat-container" style={{overflow: "-moz-hidden-unscrollable"}}>
       <div className="admin-chat-sidebar" style={{ height: "calc(100vh - 80px)", marginRight: "1rem" }}>
         <h2>Support Tickets</h2>
         {isLoadingTickets ? (
@@ -896,12 +893,12 @@ const AdminChatSection = () => {
               </div>
               <div className="admin-chat-actions">
                 {selectedTicket.status !== "closed" ? (
-                  <button onClick={handleCloseTicket} disabled={isUpdatingTicket} title="Close Ticket">
+                  <button className="close-reopen-button" onClick={handleCloseTicket} disabled={isUpdatingTicket} title="Close Ticket">
                     <FiX size={16} />
                     {isUpdatingTicket ? <FiLoader className="spinner" size={16} /> : "Close Ticket"}
                   </button>
                 ) : (
-                  <button onClick={handleReopenTicket} disabled={isUpdatingTicket} title="Reopen Ticket">
+                  <button class="close-reopen-button" onClick={handleReopenTicket} disabled={isUpdatingTicket} title="Reopen Ticket">
                     <FiRepeat size={16} />
                     {isUpdatingTicket ? <FiLoader className="spinner" size={16} /> : "Reopen Ticket"}
                   </button>
@@ -952,7 +949,7 @@ const AdminChatSection = () => {
                       }
                     }}
                   />
-                  <button onClick={handleSendAdminMessage} disabled={!newMessage.trim() || isSending}>
+                  <button class="send-button" sendonClick={handleSendAdminMessage} disabled={!newMessage.trim() || isSending}>
                     {isSending ? <FiLoader className="spinner" size={20} /> : <FiSend size={20} />}
                   </button>
                 </>
