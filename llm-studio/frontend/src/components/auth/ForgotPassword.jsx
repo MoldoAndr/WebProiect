@@ -1,43 +1,49 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
+import { auth } from '../../services/auth.service'; // Adjust the path as needed
 import './ForgotPassword.css';
 
 const ForgotPassword = () => {
+  // Common state for both steps
   const [formData, setFormData] = useState({
     email: '',
+    code: '',
+    newPassword: '',
+    confirmNewPassword: ''
   });
-  const [isLoading, setIsLoading] = useState(false);
-  const [isSubmitted, setIsSubmitted] = useState(false);
   const [errors, setErrors] = useState({});
+  const [isLoading, setIsLoading] = useState(false);
+  // step = 1: Request reset code, step = 2: Enter reset code & new passwords
+  const [step, setStep] = useState(1);
   const navigate = useNavigate();
-  
   const particleContainerRef = useRef(null);
-  
+
+  // Particle network effect (your existing code)
   useEffect(() => {
     if (!particleContainerRef.current) return;
-    
+
     const canvas = document.createElement('canvas');
     canvas.className = 'particle-network-canvas';
     particleContainerRef.current.appendChild(canvas);
-    
+
     const resizeCanvas = () => {
       if (canvas) {
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
       }
     };
-    
+
     resizeCanvas();
     window.addEventListener('resize', resizeCanvas);
-    
+
     const ctx = canvas.getContext('2d');
     let animationFrame;
     let particles = [];
     let mouseX = 0;
     let mouseY = 0;
     let isMouseActive = false;
-    
+
     // Particle network options
     const options = {
       particleColor: 'rgba(255, 255, 255, 0.7)',
@@ -49,7 +55,7 @@ const ForgotPassword = () => {
       variantRadius: 2,
       linkRadius: 200
     };
-    
+
     class Particle {
       constructor() {
         this.x = Math.random() * canvas.width;
@@ -90,15 +96,14 @@ const ForgotPassword = () => {
         ctx.fill();
       }
     }
-    
-    // Create particles
+
     const createParticles = () => {
       particles = [];
       for (let i = 0; i < options.particleAmount; i++) {
         particles.push(new Particle());
       }
     };
-    
+
     const drawLinks = () => {
       for (let i = 0; i < particles.length; i++) {
         for (let j = i + 1; j < particles.length; j++) {
@@ -118,7 +123,7 @@ const ForgotPassword = () => {
         }
       }
     };
-    
+
     const onMouseMove = (e) => {
       isMouseActive = true;
       mouseX = e.clientX;
@@ -137,7 +142,7 @@ const ForgotPassword = () => {
         }
       }
     };
-    
+
     const onMouseLeave = () => {
       isMouseActive = false;
       for (const particle of particles) {
@@ -146,7 +151,7 @@ const ForgotPassword = () => {
         particle.direction.y = Math.sin(angle) * particle.speed;
       }
     };
-    
+
     const animateParticles = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       
@@ -176,7 +181,7 @@ const ForgotPassword = () => {
       
       animationFrame = requestAnimationFrame(animateParticles);
     };
-    
+
     canvas.addEventListener('mousemove', onMouseMove);
     canvas.addEventListener('mouseleave', onMouseLeave);
     
@@ -202,7 +207,7 @@ const ForgotPassword = () => {
     }
   };
 
-  const validateForm = () => {
+  const validateEmailForm = () => {
     const newErrors = {};
     if (!formData.email.trim()) {
       newErrors.email = 'Email is required';
@@ -213,24 +218,51 @@ const ForgotPassword = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!validateForm()) {
-      return;
+  const validateResetForm = () => {
+    const newErrors = {};
+    if (!formData.code.trim()) {
+      newErrors.code = 'Reset code is required';
     }
+    if (!formData.newPassword.trim()) {
+      newErrors.newPassword = 'New password is required';
+    }
+    if (formData.newPassword !== formData.confirmNewPassword) {
+      newErrors.confirmNewPassword = 'Passwords do not match';
+    }
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleEmailSubmit = async (e) => {
+    e.preventDefault();
+    if (!validateEmailForm()) return;
+    
     setIsLoading(true);
     try {
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      toast.success('Password reset link sent to your email');
-      setIsSubmitted(true);
+      await auth.forgotPasswordCode(formData.email);
+      toast.success('A reset code has been sent to your email');
+      setStep(2);
     } catch (error) {
-      console.error('Password reset error:', error);
-      if (error.response?.data?.detail) {
-        toast.error(error.response.data.detail);
-      } else {
-        toast.error('Password reset request failed. Please try again.');
-      }
+      console.error('Forgot password error:', error);
+      toast.error('Password reset request failed. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleResetSubmit = async (e) => {
+    e.preventDefault();
+    if (!validateResetForm()) return;
+    
+    setIsLoading(true);
+    try {
+      await auth.resetPasswordCode(formData.email, formData.code, formData.newPassword);
+      toast.success('Your password has been reset successfully');
+      // Optionally, navigate to login or reset the form state
+      navigate('/login');
+    } catch (error) {
+      console.error('Reset password error:', error);
+      toast.error('Reset password failed. Please check your reset code and try again.');
     } finally {
       setIsLoading(false);
     }
@@ -257,31 +289,14 @@ const ForgotPassword = () => {
           </div>
           <h1 className="forgot-password-title">Password Recovery</h1>
           <h2 className="forgot-password-subtitle">
-            {isSubmitted 
-              ? 'Check your email' 
-              : 'Enter your email to reset password'}
+            {step === 1 
+              ? 'Enter your email to receive a reset code'
+              : 'Enter the reset code and set your new password'}
           </h2>
         </div>
         
-        {isSubmitted ? (
-          <div className="success-message">
-            <div className="success-icon">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                <polyline points="22 4 12 14.01 9 11.01"></polyline>
-              </svg>
-            </div>
-            <p>We've sent a recovery link to <strong>{formData.email}</strong></p>
-            <p className="reset-instructions">
-              Please check your email and follow the instructions to reset your password.
-              If you don't see the email, check your spam folder.
-            </p>
-            <button className="back-to-login-button" onClick={handleBackToLogin}>
-              Back to Login
-            </button>
-          </div>
-        ) : (
-          <form className="forgot-password-form" onSubmit={handleSubmit}>
+        {step === 1 ? (
+          <form className="forgot-password-form" onSubmit={handleEmailSubmit}>
             <div className="form-group">
               <label htmlFor="email" className="form-label">Email Address</label>
               <input
@@ -303,7 +318,69 @@ const ForgotPassword = () => {
               disabled={isLoading}
               className={`forgot-password-button ${isLoading ? 'loading' : ''}`}
             >
-              {isLoading ? 'Sending...' : 'Send Reset Link'}
+              {isLoading ? 'Sending...' : 'Send Reset Code'}
+            </button>
+            
+            <div className="back-link">
+              <Link to="/login" className="back-to-login">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M19 12H5M12 19l-7-7 7-7"/>
+                </svg>
+                Back to Login
+              </Link>
+            </div>
+          </form>
+        ) : (
+          <form className="forgot-password-form" onSubmit={handleResetSubmit}>
+            <div className="form-group">
+              <label htmlFor="code" className="form-label">Reset Code</label>
+              <input
+                id="code"
+                name="code"
+                type="text"
+                required
+                value={formData.code}
+                onChange={handleChange}
+                className={`form-input ${errors.code ? 'input-error' : ''}`}
+                placeholder="Enter the reset code"
+              />
+              {errors.code && <p className="error-message">{errors.code}</p>}
+            </div>
+            <div className="form-group">
+              <label htmlFor="newPassword" className="form-label">New Password</label>
+              <input
+                id="newPassword"
+                name="newPassword"
+                type="password"
+                required
+                value={formData.newPassword}
+                onChange={handleChange}
+                className={`form-input ${errors.newPassword ? 'input-error' : ''}`}
+                placeholder="Enter new password"
+              />
+              {errors.newPassword && <p className="error-message">{errors.newPassword}</p>}
+            </div>
+            <div className="form-group">
+              <label htmlFor="confirmNewPassword" className="form-label">Confirm New Password</label>
+              <input
+                id="confirmNewPassword"
+                name="confirmNewPassword"
+                type="password"
+                required
+                value={formData.confirmNewPassword}
+                onChange={handleChange}
+                className={`form-input ${errors.confirmNewPassword ? 'input-error' : ''}`}
+                placeholder="Confirm new password"
+              />
+              {errors.confirmNewPassword && <p className="error-message">{errors.confirmNewPassword}</p>}
+            </div>
+            
+            <button
+              type="submit"
+              disabled={isLoading}
+              className={`forgot-password-button ${isLoading ? 'loading' : ''}`}
+            >
+              {isLoading ? 'Resetting...' : 'Reset Password'}
             </button>
             
             <div className="back-link">

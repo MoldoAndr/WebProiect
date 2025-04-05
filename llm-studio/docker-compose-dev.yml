@@ -78,6 +78,8 @@ services:
       - MONGO_DB=llm_studio
       - FRONTEND_URL=${FRONTEND_URL:-http://localhost:3000}
       - LOG_LEVEL=info
+      - GOOGLE_MAIL_APP_PASSWORD=${GOOGLE_MAIL_APP_PASSWORD:-1234}
+      - GOOGLE_MAIL_USER=${GOOGLE_MAIL_USER:-1234}
     volumes:
       - ./backend:/app
     ports:
@@ -92,7 +94,7 @@ services:
     container_name: llm-studio-frontend
     restart: unless-stopped
     environment:
-      - REACT_APP_API_URL=http://localhost:8000/api
+      - REACT_APP_API_URL=https://localhost:8000/api
     ports:
       - "3000:3000"
     depends_on:

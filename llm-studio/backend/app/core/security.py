@@ -180,3 +180,22 @@ def check_technician_access(user: User = Depends(get_current_user)):
             detail="Technician or admin privileges required"
         )
     return user
+
+
+def create_password_reset_token(data: Union[Dict[str, Any], str], expires_delta: Optional[timedelta] = None) -> str:
+    """
+    Create a JWT token for password resets with a short expiration time.
+    """
+    if isinstance(data, str):
+        data = {"sub": data}
+    to_encode = data.copy()
+    if expires_delta is None:
+        expires_delta = timedelta(hours=1)  # Token expires in 1 hour
+    expire = datetime.utcnow() + expires_delta
+    to_encode.update({
+        "exp": expire,
+        "iat": datetime.utcnow(),
+        "jti": secrets.token_hex(16),
+        "type": "password_reset"  # Mark this token as a password reset token
+    })
+    return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)

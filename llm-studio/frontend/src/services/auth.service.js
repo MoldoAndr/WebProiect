@@ -1,11 +1,7 @@
-
 import axios from 'axios';
 import { API_URL } from '../config';
 
-// You can replace this with your actual API calls
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
-
-// Mock user data for development
+const API_BASE_URL = API_URL;
 const mockUser = {
   id: 1,
   username: 'testuser',
@@ -17,7 +13,6 @@ const mockUser = {
 class AuthService {
   async login(credentials) {
     try {
-      // For a real implementation, you would call your API:
       const response = await fetch(`${API_BASE_URL}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -101,6 +96,46 @@ class AuthService {
   
   isAuthenticated() {
     return !!this.getToken();
+  }
+
+  // Additional Functions for Forgot Password and Change Password
+
+  async forgotPasswordCode(email) {
+    try {
+      const response = await axios.post(`${API_BASE_URL}/auth/forgot-password-code`, { email });
+      return response.data;
+    } catch (error) {
+      console.error('Forgot Password Code error:', error);
+      throw error;
+    }
+  }
+
+  async resetPasswordCode(email, code, newPassword) {
+    try {
+      const response = await axios.post(`${API_BASE_URL}/auth/reset-password-code`, {
+        email,
+        code,
+        new_password: newPassword
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Reset Password Code error:', error);
+      throw error;
+    }
+  }
+
+  async changePassword(oldPassword, newPassword) {
+    try {
+      const token = this.getToken();
+      const response = await axios.post(`${API_BASE_URL}/auth/change-password`, 
+        { old_password: oldPassword, new_password: newPassword },
+        { headers: { 'Authorization': `Bearer ${token}` } }
+      );
+      return response.data;
+    } catch (error) {
+      console.error('Change Password error:', error);
+      throw error;
+    }
   }
 }
 

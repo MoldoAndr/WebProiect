@@ -47,7 +47,6 @@ class AdminChatService {
     this.setAuthHeader();
     try {
       const response = await axios.get(`${this.apiUrl}/tickets`);
-      // Normalize each ticket and its messages
       const tickets = response.data.map((t) => normalizeTicket(t));
       return tickets;
     } catch (error) {
