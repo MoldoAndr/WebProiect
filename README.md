@@ -45,10 +45,11 @@ O platformă web completă pentru gestionarea și interacțiunea cu diferite LLM
 - HTTPS în întreaga aplicație
 - Izolare Docker pentru LLM-uri
 
-### Cerințe preliminare
+## 📦 Instalare
 
-- Docker și Docker Compose
-- Ubuntu 22.04
+```
+docker compose --file docker-compose-dev.yml up --build
+```
 
 ## 👥 Roluri Utilizatori
 
