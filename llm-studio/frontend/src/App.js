@@ -21,6 +21,7 @@ import AdminDashboard from './pages/AdminDashboard';
 import AdminChat from './pages/AdminChat';
 import Unauthorized from './pages/Unauthorized';
 import TechnicianDashboard from './pages/TechnicianDashboard';
+import LandingPage from './components/LandingPage';
 
 // Legal pages
 import TermsOfService from './components/legal/TermsOfService';
@@ -45,6 +46,7 @@ function App() {
         
         <Routes>
           {/* Public routes */}
+          <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
@@ -95,10 +97,6 @@ function App() {
               </RoleBasedRoute>
             }
           />
-          
-          {/* Default route - redirect to login */}
-          <Route path="/" element={<Navigate to="/login" replace />} />
-          <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       </WebSocketProvider>
     </AuthProvider>

@@ -21,6 +21,8 @@
     "react-toastify": "^9.1.2",
     "tailwind-merge": "^2.2.1",
     "tailwindcss": "^3.2.7",
+    "three": "^0.175.0",
+    "vanta": "^0.5.24",
     "web-vitals": "^2.1.4",
     "remark-breaks": "^3.0.1",
     "remark-gfm": "^3.0.1"
