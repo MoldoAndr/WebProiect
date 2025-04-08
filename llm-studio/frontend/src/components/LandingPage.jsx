@@ -2,6 +2,9 @@ import React, { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import NET from 'vanta/dist/vanta.net.min';
 import * as THREE from 'three';
+import Slider from 'react-slick';
+import 'slick-carousel/slick/slick.css';
+import 'slick-carousel/slick/slick-theme.css';
 import './LandingPage.css';
 
 const LandingPage = () => {
@@ -38,6 +41,65 @@ const LandingPage = () => {
     navigate('/terms');
   };
 
+  // Increase the arrow z-index so they show above slides
+  function SampleNextArrow(props) {
+    const { className, style, onClick } = props;
+    return (
+      <div
+        className={className}
+        style={{ ...style, display: "block", right: "25px", zIndex: 10 }}
+        onClick={onClick}
+      />
+    );
+  }
+
+  function SamplePrevArrow(props) {
+    const { className, style, onClick } = props;
+    return (
+      <div
+        className={className}
+        style={{ ...style, display: "block", left: "25px", zIndex: 10 }}
+        onClick={onClick}
+      />
+    );
+  }
+
+  const carouselSettings = {
+    dots: true,
+    infinite: true,
+    speed: 500,
+    slidesToShow: 1,
+    slidesToScroll: 1,
+    autoplay: true,
+    autoplaySpeed: 5000,
+    arrows: true,
+    nextArrow: <SampleNextArrow />,
+    prevArrow: <SamplePrevArrow />,
+  };
+
+  const features = [
+    {
+      title: "AI-Powered Development",
+      description: "Leverage advanced language models for intelligent code completion and suggestions",
+      icon: "🤖"
+    },
+    {
+      title: "Real-time Collaboration",
+      description: "Work together with your team in real-time with instant feedback",
+      icon: "👥"
+    },
+    {
+      title: "Smart Code Analysis",
+      description: "Get intelligent insights and recommendations for your code",
+      icon: "🔍"
+    },
+    {
+      title: "Customizable Environment",
+      description: "Tailor your development environment to your specific needs",
+      icon: "⚙️"
+    }
+  ];
+
   return (
     <div className="landing-page">
       <div ref={vantaRef} className="vanta-background">
@@ -48,18 +110,30 @@ const LandingPage = () => {
             </nav>
           </header>
 
-          <main className="main-content">
+          <div className="top-section">
             <h1 className="title">Welcome to LLM Studio</h1>
             <p className="subtitle">Your AI-Powered Development Environment</p>
             <div className="cta-buttons">
               <button className="primary-button" onClick={handleGetStarted}>Get Started</button>
               <button className="secondary-button" onClick={handleLearnMore}>Learn More</button>
             </div>
-          </main>
+          </div>
+
+          <div className="carousel-container">
+            <Slider {...carouselSettings}>
+              {features.map((feature, index) => (
+                <div key={index} className="carousel-slide">
+                  <div className="feature-icon">{feature.icon}</div>
+                  <h3>{feature.title}</h3>
+                  <p>{feature.description}</p>
+                </div>
+              ))}
+            </Slider>
+          </div>
         </div>
       </div>
     </div>
   );
 };
 
-export default LandingPage; 
+export default LandingPage;
