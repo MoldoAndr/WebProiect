@@ -22,7 +22,7 @@ O platformă web completă pentru gestionarea și interacțiunea cu diferite LLM
 ├── Autentificare (JWT)
 ├── Bază de Date (MongoDB)
 ├── Server Web (Nginx)
-└── Gestionare LLM (Docker)
+└── Gestionare LLM (Flask + Python + llama + transformers)
 ```
 
 ## 🔧 Stack Tehnologic
@@ -34,22 +34,28 @@ O platformă web completă pentru gestionarea și interacțiunea cu diferite LLM
 | Autentificare | JWT |
 | Bază de Date | MongoDB |
 | Server Web | Nginx |
-| Gestionare LLM | Docker |
+| Gestionare LLM | LLama |
 | Protocol | HTTPS |
 
 ## 🛡️ Caracteristici de Securitate
 
-- JWT cu generare puternică de token
+- JWT cu generare sigura de token
 - Validare serializare input
 - Backend accesibil doar prin frontend
 - HTTPS în întreaga aplicație
-- Izolare Docker pentru LLM-uri
+- Functionare izolata pentru LLM-uri
+- WebSockets pentru transmisie de continut
 
-## 📦 Instalare
+## 📦 Instalare si rulare
 
 ```
 docker compose --file docker-compose-dev.yml up --build
 ```
+
+## 📦 Adaugare LLM-uri
+Exemplu de link valid pentru adaugare de LLM:
+[llama](https://huggingface.co/TheBloke/Llama-2-7B-GGUF/resolve/main/llama-2-7b.Q5_0.gguf)
+
 
 ## 👥 Roluri Utilizatori
 

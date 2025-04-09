@@ -8,6 +8,16 @@ import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { atomDark } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { useWebSocketContext } from "../../contexts/WebSocketContext";
 
+const THINKING_MESSAGES = [
+  "Thinking...",
+  "Processing your request...",
+  "Gathering my thoughts...",
+  "Analyzing the data...",
+  "Computing a response...",
+  "Deep in thought...",
+  "Working on it...",
+];
+
 const CodeBlock = ({ language, value }) => (
   <div className="relative">
     <div className="absolute right-2 top-2">
@@ -53,9 +63,9 @@ const markdownComponents = {
       return (
         <code
           style={{
-            backgroundColor: '#f0f0f0',
-            padding: '2px 4px',
-            borderRadius: '4px',
+            backgroundColor: "#f0f0f0",
+            padding: "2px 4px",
+            borderRadius: "4px",
           }}
           {...props}
         >
@@ -66,15 +76,13 @@ const markdownComponents = {
       return (
         <pre
           style={{
-            backgroundColor: '#f0f0f0',
-            padding: '10px',
-            borderRadius: '4px',
-            overflowX: 'auto',
+            backgroundColor: "#f0f0f0",
+            padding: "10px",
+            borderRadius: "4px",
+            overflowX: "auto",
           }}
         >
-          <code className={className} {...props}>
-            {children}
-          </code>
+          <code className={className} {...props}>{children}</code>
         </pre>
       );
     }
@@ -100,20 +108,45 @@ const StreamingMessage = ({ content }) => (
     </div>
   </div>
 );
+
+const ThinkingMessage = ({ content }) => (
+  <div className="flex justify-start mb-4">
+    <div className="message message-bot">
+      <div className="message-content">
+        <p>{content}</p>
+        <span className="streaming-indicator">
+          <span className="typing-dot"></span>
+          <span className="typing-dot"></span>
+          <span className="typing-dot"></span>
+        </span>
+      </div>
+    </div>
+  </div>
+);
+
 const ChatInterface = ({ conversation, isLLMSelected }) => {
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
-  // Local messages state initialized from conversation prop.
+  const [thinkingMessage, setThinkingMessage] = useState("");
   const [localMessages, setLocalMessages] = useState(conversation?.messages || []);
   const messagesEndRef = useRef(null);
   const textareaRef = useRef(null);
-  
-  // Use a ref to always have the latest streaming content.
   const streamingContentRef = useRef("");
   const [streamingContent, setStreamingContent] = useState("");
-  
   const { isConnected, sendPrompt, subscribeToConversation } = useWebSocketContext();
+
+  // Effect to cycle through thinking messages when typing
+  useEffect(() => {
+    let interval;
+    if (isTyping && !isStreaming) {
+      interval = setInterval(() => {
+        const randomIndex = Math.floor(Math.random() * THINKING_MESSAGES.length);
+        setThinkingMessage(THINKING_MESSAGES[randomIndex]);
+      }, 4500); // Change message every 1.5 seconds
+    }
+    return () => clearInterval(interval);
+  }, [isTyping, isStreaming]);
 
   useEffect(() => {
     if (conversation) {
@@ -123,7 +156,7 @@ const ChatInterface = ({ conversation, isLLMSelected }) => {
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [localMessages, streamingContent]);
+  }, [localMessages, streamingContent, thinkingMessage]);
 
   useEffect(() => {
     if (textareaRef.current) {
@@ -132,7 +165,7 @@ const ChatInterface = ({ conversation, isLLMSelected }) => {
       textareaRef.current.style.height = `${newHeight}px`;
     }
   }, [input]);
-  
+
   const handleNewAssistantMessage = useCallback((content) => {
     const newMessage = {
       id: Date.now(),
@@ -142,15 +175,13 @@ const ChatInterface = ({ conversation, isLLMSelected }) => {
     };
     setLocalMessages((prev) => [...prev, newMessage]);
   }, []);
-  
-  // Subscribe to WebSocket messages for the current conversation.
+
   useEffect(() => {
     if (!conversation?.id) return;
-    
+
     const unsubscribe = subscribeToConversation(conversation.id, (data) => {
       if (data.type === "stream") {
         setIsStreaming(true);
-        // Update both state and ref.
         setStreamingContent((prev) => {
           const newContent = prev + (data.content || "");
           streamingContentRef.current = newContent;
@@ -158,18 +189,18 @@ const ChatInterface = ({ conversation, isLLMSelected }) => {
         });
       } else if (data.type === "complete") {
         setIsStreaming(false);
-        // Use the ref to capture the complete streaming content.
         const finalContent = streamingContentRef.current;
         handleNewAssistantMessage(finalContent);
         setStreamingContent("");
         streamingContentRef.current = "";
         setIsTyping(false);
+        setThinkingMessage(""); // Clear thinking message when response is complete
       }
     });
-    
+
     return () => unsubscribe();
   }, [conversation?.id, subscribeToConversation, handleNewAssistantMessage]);
-  
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!input.trim()) return;
@@ -189,7 +220,6 @@ const ChatInterface = ({ conversation, isLLMSelected }) => {
     const message = input.trim();
     setInput("");
     setIsTyping(true);
-    // Add the user's message optimistically.
     const userMessage = {
       id: Date.now(),
       role: "user",
@@ -197,18 +227,20 @@ const ChatInterface = ({ conversation, isLLMSelected }) => {
       created_at: new Date().toISOString(),
     };
     setLocalMessages((prev) => [...prev, userMessage]);
-    
+
     try {
       if (isConnected) {
         await sendPrompt(conversation.id, message);
       } else {
         toast.error("WebSocket disconnected. Please try again later.");
         setIsTyping(false);
+        setThinkingMessage("");
       }
     } catch (error) {
       console.error("Error sending message:", error);
       toast.error("Failed to send message. Please try again.");
       setIsTyping(false);
+      setThinkingMessage("");
     }
   };
 
@@ -234,7 +266,7 @@ const ChatInterface = ({ conversation, isLLMSelected }) => {
       </div>
 
       <div className="messages-container">
-        {localMessages.length === 0 ? (
+        {localMessages.length === 0 && !isTyping ? (
           <div className="start-message">
             <p>Start a conversation</p>
             <p>
@@ -242,15 +274,22 @@ const ChatInterface = ({ conversation, isLLMSelected }) => {
             </p>
           </div>
         ) : (
-          localMessages.map((msg, index) => (
-            <Message key={msg.id || `msg-${index}`} message={msg} isUser={msg.role === "user"} />
-          ))
+          <>
+            {localMessages.map((msg, index) => (
+              <Message
+                key={msg.id || `msg-${index}`}
+                message={msg}
+                isUser={msg.role === "user"}
+              />
+            ))}
+            {isTyping && !isStreaming && thinkingMessage && (
+              <ThinkingMessage content={thinkingMessage} />
+            )}
+            {isStreaming && streamingContent && (
+              <StreamingMessage content={streamingContent} />
+            )}
+          </>
         )}
-
-        {isStreaming && streamingContent && (
-          <StreamingMessage content={streamingContent} />
-        )}
-
         <div ref={messagesEndRef} />
       </div>
 

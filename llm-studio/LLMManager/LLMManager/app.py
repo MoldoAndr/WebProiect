@@ -296,6 +296,54 @@ class LLMModel:
              prompt += "Output:"
         return prompt
 
+    def modify_parameters(self, temperature: Optional[float] = None, 
+                     context_window: Optional[int] = None,
+                     n_threads: Optional[int] = None,
+                     n_gpu_layers: Optional[int] = None) -> Dict[str, Any]:
+        """Modify model parameters dynamically where possible."""
+        changes = {}
+        errors = {}
+
+        if temperature is not None:
+            if not isinstance(temperature, (int, float)) or temperature < 0:
+                errors["temperature"] = "Must be a non-negative number"
+            else:
+                logger.info(f"Updating temperature from {self.temperature} to {temperature}")
+                self.temperature = float(temperature)
+                changes["temperature"] = self.temperature
+
+        if context_window is not None:
+            if not isinstance(context_window, int) or context_window <= 0:
+                errors["context_window"] = "Must be a positive integer"
+            elif self.using_llama_cpp and context_window != self.context_window:
+                errors["context_window"] = "Cannot change context_window for llama.cpp models without reinitialization"
+            else:
+                logger.info(f"Updating context_window from {self.context_window} to {context_window}")
+                self.context_window = context_window
+                changes["context_window"] = self.context_window
+
+        if n_threads is not None:
+            if not isinstance(n_threads, int) or n_threads < 1:
+                errors["n_threads"] = "Must be a positive integer"
+            elif not self.using_llama_cpp:
+                errors["n_threads"] = "Only applicable to llama.cpp models"
+            else:
+                logger.info(f"Updating n_threads from {self.n_threads} to {n_threads}")
+                self.n_threads = max(1, n_threads)
+                self.model.n_threads = self.n_threads  # Update llama.cpp runtime parameter
+                changes["n_threads"] = self.n_threads
+
+        if n_gpu_layers is not None:
+            if not isinstance(n_gpu_layers, int) or n_gpu_layers < 0:
+                errors["n_gpu_layers"] = "Must be a non-negative integer"
+            elif not self.using_llama_cpp:
+                errors["n_gpu_layers"] = "Only applicable to llama.cpp models"
+            elif n_gpu_layers != self.n_gpu_layers:
+                errors["n_gpu_layers"] = "Cannot change n_gpu_layers without reinitializing the model"
+            else:
+                changes["n_gpu_layers"] = self.n_gpu_layers  # No change, just report current value
+
+        return {"changes": changes, "errors": errors}
 
     def _format_rwkv_prompt(self, conversation_history: List[Dict[str, str]]) -> str:
         """Format conversation history for RWKV model"""
@@ -501,7 +549,6 @@ class LLMConversationManager:
 
         }
 
-
 def analyze_gguf_file(file_path):
     """Extract metadata from a GGUF file to check compatibility (basic check)"""
     try:
@@ -583,7 +630,6 @@ def analyze_gguf_file(file_path):
         logger.error(f"Unexpected error analyzing GGUF file {file_path}: {e}")
         return {"error": f"Unexpected error analyzing GGUF file: {e}", "file_path": file_path}
 
-
 def download_gguf_model(url, save_path):
     """Download a GGUF model from a URL to the specified path"""
     try:
@@ -634,7 +680,6 @@ def download_gguf_model(url, save_path):
              logger.info(f"Removing partially downloaded file due to error: {save_path}")
              os.remove(save_path)
         return False
-
 
 app = Flask(__name__)
 manager = LLMConversationManager()
@@ -721,6 +766,72 @@ def initialize_models():
         "errors": errors
     }), status_code
 
+@app.route('/api/modify-model/<model_id>', methods=['PUT'])
+def modify_model_parameters(model_id):
+    """Modify parameters of an existing model."""
+    if model_id not in manager.models:
+        return jsonify({"error": f"Model '{model_id}' not found"}), 404
+
+    data = request.json
+    if not data:
+        return jsonify({"error": "Request body must be JSON"}), 400
+
+    # Extract parameters from request
+    temperature = data.get('temperature')
+    context_window = data.get('context_window')
+    n_threads = data.get('n_threads')
+    n_gpu_layers = data.get('n_gpu_layers')
+
+    # If no parameters provided to modify, return current info
+    if all(param is None for param in [temperature, context_window, n_threads, n_gpu_layers]):
+        try:
+            model_info = manager.model_info(model_id)
+            return jsonify({
+                "success": True,
+                "message": "No parameters provided to modify. Returning current model info.",
+                "model_id": model_id,
+                "model_info": model_info
+            }), 200
+        except ValueError as e:
+            return jsonify({"error": str(e)}), 500
+
+    logger.info(f"Modifying parameters for model '{model_id}': {data}")
+
+    model = manager.models[model_id]
+    result = model.modify_parameters(
+        temperature=temperature,
+        context_window=context_window,
+        n_threads=n_threads,
+        n_gpu_layers=n_gpu_layers
+    )
+
+    changes = result["changes"]
+    errors = result["errors"]
+
+    try:
+        updated_info = manager.model_info(model_id)
+    except ValueError as e:
+        logger.error(f"Failed to retrieve updated info for model '{model_id}' after modification: {e}")
+        updated_info = {"error": str(e)}
+
+    if errors:
+        status_code = 400 if not changes else 207  # 207 for partial success
+        return jsonify({
+            "success": bool(changes),  # True if any change succeeded
+            "model_id": model_id,
+            "message": "Model parameters partially updated" if changes else "Failed to update model parameters",
+            "changes": changes,
+            "errors": errors,
+            "updated_model_info": updated_info
+        }), status_code
+
+    return jsonify({
+        "success": True,
+        "model_id": model_id,
+        "message": "Model parameters updated successfully",
+        "changes": changes,
+        "updated_model_info": updated_info
+    }), 200
 
 @app.route('/api/add-llm', methods=['POST'])
 def add_llm_model():
@@ -901,7 +1012,6 @@ def add_llm_model():
             "suggestion": suggestion,
             "analysis": analysis or "N/A"
         }), 500
-
 
 @app.route('/api/delete-llm/<model_id>', methods=['DELETE'])
 def delete_llm_model(model_id):

@@ -13,12 +13,15 @@ show_usage() {
     echo "  $0 chat <conv_id> \"<message>\"       - Send a message to a conversation"
     echo "  $0 history <conv_id>                - Get conversation history"
     echo "  $0 reset <conv_id>                  - Reset a conversation"
+    echo "  $0 modify <model_id> [temp] [ctx] [threads] [gpu_layers] - Modify model parameters"
     echo
     echo "Examples:"
     echo "  $0 list"
     echo "  $0 create phi2 my_philosophy_chat"
     echo "  $0 chat my_philosophy_chat \"What is the meaning of life?\""
     echo "  $0 history my_philosophy_chat"
+    echo "  $0 modify phi2 0.9 4096 8 0  - Set temperature=0.9, context_window=4096, threads=8, gpu_layers=0"
+    echo "  $0 modify phi2 0.8            - Set only temperature=0.8"
 }
 
 # Check if jq is installed
@@ -109,6 +112,46 @@ case "$1" in
         
         echo "Resetting conversation '$conv_id'..."
         curl -s -X POST "$API_URL/api/conversation/$conv_id/reset" | jq
+        ;;
+        
+    modify)
+        if [ -z "$2" ]; then
+            echo "Error: Model ID is required"
+            show_usage
+            exit 1
+        fi
+        
+        model_id="$2"
+        temperature="$3"
+        context_window="$4"
+        n_threads="$5"
+        n_gpu_layers="$6"
+        
+        # Build JSON payload dynamically based on provided arguments
+        payload="{ \"model_id\": \"$model_id\""
+        if [ -n "$temperature" ]; then
+            payload="$payload, \"temperature\": $temperature"
+        fi
+        if [ -n "$context_window" ]; then
+            payload="$payload, \"context_window\": $context_window"
+        fi
+        if [ -n "$n_threads" ]; then
+            payload="$payload, \"n_threads\": $n_threads"
+        fi
+        if [ -n "$n_gpu_layers" ]; then
+            payload="$payload, \"n_gpu_layers\": $n_gpu_layers"
+        fi
+        payload="$payload }"
+        
+        echo "Modifying model '$model_id' with parameters:"
+        echo "$payload" | jq
+        
+        response=$(curl -s -X PUT "$API_URL/api/modify-model/$model_id" \
+            -H "Content-Type: application/json" \
+            -d "$payload")
+        
+        echo "Response:"
+        echo "$response" | jq
         ;;
         
     *)

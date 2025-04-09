@@ -341,13 +341,34 @@ body {
 
 .stat-card {
   background-color: rgba(26, 32, 44, 0.7);
-  border-radius: 10px;
+  border-radius: 12px; /* Slightly larger radius for a smoother look */
   border: 1px solid rgba(255, 255, 255, 0.08);
-  padding: 1.5rem;
+  padding: 2rem; /* Increased padding to make it bigger */
   display: flex;
   align-items: center;
   gap: 1.5rem;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  box-shadow: 
+    0 4px 6px rgba(0, 0, 0, 0.1), /* Original shadow for depth */
+    0 0 15px rgba(255, 255, 255, 0.2), /* Subtle white glow */
+    0 0 25px rgba(0, 128, 255, 0.15); /* Slight blue shine for effect */
+  transition: box-shadow 0.3s ease; /* Smooth transition for hover */
+}
+
+.action-icon.edit-icon {
+  color: #3498db; /* Blue for edit, distinguish from delete */
+  margin-right: 8px; /* Space between edit and delete icons */
+}
+
+.action-icon.edit-icon:hover {
+  color: #2980b9; /* Darker blue on hover */
+}
+
+/* Optional: Enhance the shine on hover */
+.stat-card:hover {
+  box-shadow: 
+    0 4px 6px rgba(0, 0, 0, 0.1),
+    0 0 20px rgba(255, 255, 255, 0.3), /* Brighter white glow */
+    0 0 35px rgba(0, 128, 255, 0.25); /* Stronger blue shine */
 }
 
 .stat-icon {

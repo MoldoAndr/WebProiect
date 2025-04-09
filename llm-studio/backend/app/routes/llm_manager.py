@@ -7,7 +7,7 @@ from bson import ObjectId
 from pydantic import BaseModel
 from app.core.db import get_database
 from app.models.user import User
-from app.core.security import get_current_user, check_technician_access
+from app.core.security import get_current_user, check_technician_access, check_admin_access
 from app.services.llm_manager_service import llm_manager_service
 from app.models.conversation import ConversationCreate
 from app.services.conversation_service import create_conversation, get_conversation
@@ -39,6 +39,20 @@ class AddModelRequest(BaseModel):
     auto_correct_type: bool = True
     download_only: bool = False
 
+
+class ModifyModelRequest(BaseModel):
+    temperature: Optional[float] = None
+    context_window: Optional[int] = None
+    n_threads: Optional[int] = None
+    n_gpu_layers: Optional[int] = None
+
+class ModifyModelResponse(BaseModel):
+    success: bool
+    model_id: str
+    message: str
+    changes: Dict[str, Any]
+    errors: Dict[str, str]
+    updated_model_info: Dict[str, Any]
 # ----- Model Management Endpoints -----
 
 @router.get("/models")
@@ -99,6 +113,76 @@ async def delete_model(
             detail=f"Failed to delete model: {str(e)}"
         )
 
+@router.put("/models/{model_id}", response_model=ModifyModelResponse)
+async def modify_model(
+    model_id: str,
+    modify_data: ModifyModelRequest,
+    current_user: User = Depends(check_technician_access)
+):
+    """Modify parameters of an existing LLM model (technician or admin only)"""
+    try:
+        # Check if any parameters are provided to modify
+        if not any([modify_data.temperature, modify_data.context_window, 
+                   modify_data.n_threads, modify_data.n_gpu_layers]):
+            model_info = await llm_manager_service.get_model_info(model_id)
+            return ModifyModelResponse(
+                success=True,
+                model_id=model_id,
+                message="No parameters provided to modify. Returning current model info.",
+                changes={},
+                errors={},
+                updated_model_info=model_info
+            )
+
+        # Modify the model parameters via the service
+        result = await llm_manager_service.modify_model_parameters(
+            model_id=model_id,
+            temperature=modify_data.temperature,
+            context_window=modify_data.context_window,
+            n_threads=modify_data.n_threads,
+            n_gpu_layers=modify_data.n_gpu_layers
+        )
+
+        changes = result.get("changes", {})
+        errors = result.get("errors", {})
+        updated_model_info = await llm_manager_service.get_model_info(model_id)
+
+        if errors and not changes:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Failed to update model parameters"
+            )
+        elif errors:
+            return ModifyModelResponse(
+                success=bool(changes),
+                model_id=model_id,
+                message="Model parameters partially updated",
+                changes=changes,
+                errors=errors,
+                updated_model_info=updated_model_info
+            )
+        
+        return ModifyModelResponse(
+            success=True,
+            model_id=model_id,
+            message="Model parameters updated successfully",
+            changes=changes,
+            errors={},
+            updated_model_info=updated_model_info
+        )
+    except ValueError as ve:
+        logger.error(f"Model not found or invalid parameters for {model_id}: {str(ve)}")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Model '{model_id}' not found"
+        )
+    except Exception as e:
+        logger.error(f"Failed to modify model {model_id}: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to modify model: {str(e)}"
+        )
+
 @router.post("/analyze-model")
 async def analyze_model(
     model_path: str,
@@ -113,6 +197,8 @@ async def analyze_model(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to analyze model: {str(e)}"
         )
+
+
 
 # ----- Conversation Management Endpoints -----
 
@@ -242,7 +328,6 @@ async def send_message_endpoint(
             detail=f"Failed to send message: {str(e)}"
         )
 
-# ----- Health Check Endpoint -----
 
 @router.get("/health")
 async def health_check():
@@ -253,4 +338,53 @@ async def health_check():
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"LLM Manager service is not healthy: {str(e)}"
+        )
+
+class StatsResponse(BaseModel):
+    total_admin_messages: int
+    total_conversations: int
+    total_messages: int
+    avg_messages_per_conversation: float
+    avg_conversations_per_user: float
+    avg_tickets_per_user: float
+
+@router.get("/stats", response_model=StatsResponse)
+async def get_system_stats(current_user: User = Depends(check_admin_access)):
+    """Get system-wide statistics for admin dashboard"""
+    try:
+        db = await get_database()
+        total_admin_messages = await db.admin_messages.count_documents({})
+        total_conversations = await db.conversations.count_documents({})
+        total_messages = await db.messages.count_documents({})
+        if total_conversations > 0:
+            avg_messages_per_conversation = total_messages / total_conversations
+        else:
+            avg_messages_per_conversation = 0.0
+        total_users = await db.users.count_documents({})
+        if total_users > 0:
+            avg_conversations_per_user = total_conversations / total_users
+        else:
+            avg_conversations_per_user = 0.0
+        total_tickets = await db.tickets.count_documents({})
+        if total_users > 0:
+            avg_tickets_per_user = total_tickets / total_users
+        else:
+            avg_tickets_per_user = 0.0
+        stats = {
+            "total_admin_messages": total_admin_messages,
+            "total_conversations": total_conversations,
+            "total_messages": total_messages,
+            "avg_messages_per_conversation": round(avg_messages_per_conversation, 2),
+            "avg_conversations_per_user": round(avg_conversations_per_user, 2),
+            "avg_tickets_per_user": round(avg_tickets_per_user, 2)
+        }
+        
+        logger.info(f"Retrieved system stats: {stats}")
+        return stats
+    
+    except Exception as e:
+        logger.error(f"Failed to retrieve system stats: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to retrieve system stats: {str(e)}"
         )

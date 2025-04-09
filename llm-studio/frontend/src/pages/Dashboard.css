@@ -323,26 +323,12 @@ body {
 .logo {
   margin-left: 25px;
   display: flex;
-  transform: scale(1.5);
   align-items: center;
 }
 
 .logo-icon {
   color: var(--blue-light);
   animation: pulse-glow 3s infinite alternate;
-}
-
-.logo-text-primary {
-  color: var(--blue-light);
-  font-weight: 700;
-  animation: float 6s ease-in-out infinite;
-}
-
-.logo-text-secondary {
-  color: var(--text-light);
-  font-weight: 700;
-  animation: float 6s ease-in-out infinite;
-  animation-delay: 1s;
 }
 
 @keyframes pulse-glow {
@@ -725,6 +711,7 @@ body {
   margin-top: 20px;
   background-color: var(--accent-blue);
   color: white;
+  font-weight: bold;
   padding: 0.75rem 1rem;
   border-radius: 16px 16px 0 16px;
 }
@@ -732,6 +719,7 @@ body {
 .message-bot {
   background-color: var(--border-color);
   color: var(--text-light);
+  font-weight: bold;
   padding: 0.75rem 1rem;
   border-radius: 16px 16px 16px 0;
 }

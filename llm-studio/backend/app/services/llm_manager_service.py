@@ -93,11 +93,8 @@ class LLMManagerService:
     async def create_conversation(self, model_id: str, conversation_id: Optional[str] = None) -> Dict[str, Any]:
         if conversation_id is not None:
             try:
-                # Convert the hex string to an integer (base 16)
                 conv_int = int(conversation_id, 16)
-                # Subtract 1
                 adjusted_conv_int = conv_int - 1
-                # Format back to a 24-character hex string (lowercase)
                 adjusted_conversation_id = format(adjusted_conv_int, '024x')
             except Exception as e:
                 raise ValueError("Invalid conversation_id format, must be a valid 24-character hex string") from e
@@ -226,50 +223,106 @@ class LLMManagerService:
             logger.error(f"Failed to sync LLMs to database: {e}")
             return {"success": False, "error": str(e)}
 
+    async def modify_model_parameters(
+        self,
+        model_id: str,
+        temperature: Optional[float] = None,
+        context_window: Optional[int] = None,
+        n_threads: Optional[int] = None,
+        n_gpu_layers: Optional[int] = None
+    ) -> Dict[str, Any]:
+        """Modify parameters of an existing model by calling the external LLM API"""
+        # Prepare the payload, only including parameters that are provided (not None)
+        data = {}
+        if temperature is not None:
+            data["temperature"] = temperature
+        if context_window is not None:
+            data["context_window"] = context_window
+        if n_threads is not None:
+            data["n_threads"] = n_threads
+        if n_gpu_layers is not None:
+            data["n_gpu_layers"] = n_gpu_layers
+
+        if not data:
+            logger.info(f"No parameters to modify for model '{model_id}'")
+            return {"success": True, "message": "No changes requested", "changes": {}, "errors": {}}
+
+        logger.info(f"Modifying model '{model_id}' with parameters: {data}")
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.put(
+                    f"{self.base_url}/api/modify-model/{model_id}",
+                    json=data
+                )
+                response.raise_for_status()
+                result = response.json()
+                logger.info(f"Successfully modified model '{model_id}': {result}")
+                return result
+        except httpx.HTTPStatusError as e:
+            error_detail = e.response.json().get("detail", str(e))
+            logger.error(f"Failed to modify model '{model_id}': {error_detail}")
+            raise ValueError(f"Failed to modify model: {error_detail}") from e
+        except Exception as e:
+            logger.error(f"Unexpected error modifying model '{model_id}': {str(e)}")
+            raise
+
+    async def get_model_info(self, model_id: str) -> Dict[str, Any]:
+        """Get detailed information about a specific model"""
+        logger.info(f"Fetching info for model '{model_id}'")
+        try:
+            models = await self.get_models()
+            if model_id in models:
+                model_info = models[model_id]
+                # Ensure the response matches expected structure
+                return {
+                    "id": model_info.get("id", model_id),
+                    "type": model_info.get("type", "unknown"),
+                    "model_path": model_info.get("model_path", "N/A"),
+                    "context_window": model_info.get("context_window", 2048),
+                    "n_threads": model_info.get("n_threads", 4),
+                    "n_gpu_layers": model_info.get("n_gpu_layers", 0),
+                    "temperature": model_info.get("temperature", 0.7),
+                    "backend": model_info.get("backend"),
+                    "device_info": model_info.get("device_info"),
+                    "size_mb": model_info.get("size_mb")
+                }
+            else:
+                logger.error(f"Model '{model_id}' not found in models list")
+                raise ValueError(f"Model '{model_id}' not found")
+        except Exception as e:
+            logger.error(f"Failed to fetch model info for '{model_id}': {str(e)}")
+            raise ValueError(f"Failed to fetch model info: {str(e)}") from e
+
     async def sync_all_conversations_with_llm_manager(self) -> Dict[str, Any]:
-        """
-        Fetches ALL conversations from the database and attempts to sync them
-        with the LLM Manager service. Useful for startup or periodic checks.
-        """
         logger.info("Starting global sync of ALL conversations with LLM Manager.")
         synced_count = 0
         error_count = 0
         total_processed = 0
         try:
-            from app.core.db import get_database # Local import ok here
+            from app.core.db import get_database
             db = await get_database()
             conversations_cursor = db.conversations.find(
-                {}, # Find all conversations
-                {"_id": 1, "llm_id": 1, "user_id": 1} # Fetch necessary fields
+                {},
+                {"_id": 1, "llm_id": 1, "user_id": 1}
             )
-
-            # Note: This could be a very large number of conversations.
-            # Consider adding limits, pagination, or batching if performance is an issue.
             async for conv in conversations_cursor:
                 total_processed += 1
                 conversation_id = str(conv.get("_id"))
                 model_id = conv.get("llm_id")
-                user_id = conv.get("user_id") # For logging context
-
+                user_id = conv.get("user_id")
                 if not conversation_id or not model_id:
                     logger.warning(f"[Global Sync] Skipping conversation due to missing data: {conv}")
                     continue
-
                 try:
-                    # Assume create_conversation is idempotent
-                    # logger.debug(f"[Global Sync] Syncing conv_id={conversation_id} (model: {model_id}, user: {user_id})") # Too verbose maybe
                     await self.create_conversation(model_id, conversation_id)
                     synced_count += 1
                 except Exception as sync_exc:
                     error_count += 1
                     logger.error(f"[Global Sync] Error syncing conv_id={conversation_id} (user: {user_id}): {sync_exc}", exc_info=False)
-
             logger.info(f"Global conversation sync finished. Processed: {total_processed}, Synced/Ensured: {synced_count}, Errors: {error_count}")
             return {"success": True, "processed": total_processed, "synced": synced_count, "errors": error_count}
-
         except Exception as e:
             logger.error(f"Major error during global conversation sync: {e}", exc_info=True)
             return {"success": False, "error": str(e), "processed": total_processed, "synced": synced_count, "errors": error_count}
-
 
 llm_manager_service = LLMManagerService()

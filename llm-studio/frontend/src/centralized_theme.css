@@ -552,19 +552,6 @@ html, body {
   height: 32px;
 }
 
-.logo-text-primary {
-  color: var(--blue-light);
-  font-weight: 700;
-  animation: float 6s ease-in-out infinite;
-}
-
-.logo-text-secondary {
-  color: var(--text-light);
-  font-weight: 700;
-  animation: float 6s ease-in-out infinite;
-  animation-delay: 1s;
-}
-
 .admin-title {
   font-size: 1.5rem;
   font-weight: 600;

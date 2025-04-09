@@ -23,7 +23,7 @@ const LandingPage = () => {
       scaleMobile: 1.00,
       color: 0x241873,
       points: 14.00,
-      maxDistance: 14.00,
+      maxDistance: 24.00,
       spacing: 18.00
     });
 

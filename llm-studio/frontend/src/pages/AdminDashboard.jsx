@@ -21,25 +21,14 @@ import {
   FiRepeat,
   FiAlertCircle,
   FiSend,
-  FiInfo
+  FiInfo,
 } from "react-icons/fi";
 import { useAuth } from "../hooks/useAuth";
 import { adminChatService } from "../services/admin-chat.service";
 import "./AdminDashboard.css";
+import { API_URL } from "../config";
+const API_V1_STR = API_URL;
 
-// -----------------------------------------------------------------------------
-// fetchApi Helper Function (for non-ticket operations)
-// -----------------------------------------------------------------------------
-const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:8000";
-const API_V1_STR = "/api"; // Defined API prefix
-
-/**
- * Helper function for making authenticated API calls.
- * @param {string} url - The API endpoint path (e.g., "/users") relative to API_V1_STR.
- * @param {string | null} token - The JWT authentication token.
- * @param {object} options - Fetch options (method, body, etc.)
- * @returns {Promise<any>} - The JSON response from the API.
- */
 const fetchApi = async (url, token, options = {}) => {
   const headers = {
     "Content-Type": "application/json",
@@ -49,7 +38,7 @@ const fetchApi = async (url, token, options = {}) => {
     headers["Authorization"] = `Bearer ${token}`;
   }
   try {
-    const fullUrl = `${API_BASE_URL}${API_V1_STR}${url}`;
+    const fullUrl = `${API_V1_STR}${url}`;
     const response = await fetch(fullUrl, {
       ...options,
       headers,
@@ -57,13 +46,19 @@ const fetchApi = async (url, token, options = {}) => {
     let responseBody;
     const contentType = response.headers.get("content-type");
     if (contentType && contentType.indexOf("application/json") !== -1) {
-      if (response.status === 204 || response.headers.get("content-length") === "0") {
+      if (
+        response.status === 204 ||
+        response.headers.get("content-length") === "0"
+      ) {
         responseBody = null;
       } else {
         responseBody = await response.json();
       }
     } else {
-      if (response.status !== 204 && response.headers.get("content-length") !== "0") {
+      if (
+        response.status !== 204 &&
+        response.headers.get("content-length") !== "0"
+      ) {
         responseBody = await response.text();
       } else {
         responseBody = null;
@@ -71,7 +66,11 @@ const fetchApi = async (url, token, options = {}) => {
     }
     if (!response.ok) {
       let errorDetail = `HTTP error! status: ${response.status}`;
-      if (responseBody && typeof responseBody === "object" && responseBody.detail) {
+      if (
+        responseBody &&
+        typeof responseBody === "object" &&
+        responseBody.detail
+      ) {
         if (Array.isArray(responseBody.detail)) {
           errorDetail = responseBody.detail
             .map((err) => `${err.loc?.join(".") || "error"}: ${err.msg}`)
@@ -87,22 +86,30 @@ const fetchApi = async (url, token, options = {}) => {
     }
     return responseBody;
   } catch (error) {
-    console.error(`Fetch API Error (${options.method || "GET"} ${url}):`, error);
+    console.error(
+      `Fetch API Error (${options.method || "GET"} ${url}):`,
+      error
+    );
     throw new Error(error.message || "An unknown API error occurred.");
   }
 };
 
-// -----------------------------------------------------------------------------
-// AdminDashboard Component
-// -----------------------------------------------------------------------------
 const AdminDashboard = () => {
   const [activeSection, setActiveSection] = useState("overview");
   const [users, setUsers] = useState([]);
   const [llms, setLlms] = useState([]);
+  const [stats, setStats] = useState({
+    total_admin_messages: 0,
+    total_conversations: 0,
+    total_messages: 0,
+    avg_messages_per_conversation: 0,
+    avg_conversations_per_user: 0,
+    avg_tickets_per_user: 0,
+  });
   const [isLoading, setIsLoading] = useState({
     users: false,
     llms: false,
-    overview: false,
+    stats: false,
   });
   const [isMutating, setIsMutating] = useState(false);
   const [showUserModal, setShowUserModal] = useState(false);
@@ -153,7 +160,10 @@ const AdminDashboard = () => {
         }));
         setLlms(processedLlms);
       } else {
-        console.warn("Received unexpected data format for LLMs:", fetchedLLMsData);
+        console.warn(
+          "Received unexpected data format for LLMs:",
+          fetchedLLMsData
+        );
         setLlms([]);
         toast.warn("Could not parse LLM model data from the server.");
       }
@@ -164,6 +174,36 @@ const AdminDashboard = () => {
       setIsLoading((prev) => ({ ...prev, llms: false }));
     }
   }, []);
+
+  const loadStats = useCallback(async () => {
+    if (!authToken) return;
+    setIsLoading((prev) => ({ ...prev, stats: true }));
+    try {
+      const fetchedStats = await fetchApi("/llm-manager/stats", authToken);
+      setStats({
+        total_admin_messages: fetchedStats.total_admin_messages || 0,
+        total_conversations: fetchedStats.total_conversations || 0,
+        total_messages: fetchedStats.total_messages || 0,
+        avg_messages_per_conversation:
+          fetchedStats.avg_messages_per_conversation || 0,
+        avg_conversations_per_user:
+          fetchedStats.avg_conversations_per_user || 0,
+        avg_tickets_per_user: fetchedStats.avg_tickets_per_user || 0,
+      });
+    } catch (error) {
+      toast.error(`Failed to load statistics: ${error.message}`);
+      setStats({
+        total_admin_messages: 0,
+        total_conversations: 0,
+        total_messages: 0,
+        avg_messages_per_conversation: 0,
+        avg_conversations_per_user: 0,
+        avg_tickets_per_user: 0,
+      });
+    } finally {
+      setIsLoading((prev) => ({ ...prev, stats: false }));
+    }
+  }, [authToken]);
 
   // --- Initial Load and Auth Check ---
   useEffect(() => {
@@ -177,12 +217,13 @@ const AdminDashboard = () => {
     if (authToken && user?.role === "admin") {
       loadUsers();
       loadLLMs();
+      loadStats();
     } else if (!authLoading && !authToken) {
       console.log("Admin Dashboard: Not authenticated. Redirecting to login.");
       toast.info("Please log in to access the admin area.");
       navigate("/login");
     }
-  }, [authToken, user, authLoading, loadUsers, loadLLMs, navigate]);
+  }, [authToken, user, authLoading, loadUsers, loadLLMs, loadStats, navigate]);
 
   // --- Handlers for User and LLM Management ---
   const handleOpenEditUserModal = (userToEdit) => {
@@ -199,7 +240,11 @@ const AdminDashboard = () => {
       toast.error("You cannot delete your own account.");
       return;
     }
-    if (window.confirm("Are you sure you want to delete this user? This action cannot be undone.")) {
+    if (
+      window.confirm(
+        "Are you sure you want to delete this user? This action cannot be undone."
+      )
+    ) {
       setIsMutating(true);
       try {
         await fetchApi(`/users/${userId}`, authToken, { method: "DELETE" });
@@ -331,7 +376,9 @@ const AdminDashboard = () => {
       });
       await loadLLMs();
       setShowLLMModal(false);
-      toast.success(`LLM '${payload.model_id}' added successfully (or download initiated).`);
+      toast.success(
+        `LLM '${payload.model_id}' added successfully (or download initiated).`
+      );
     } catch (error) {
       toast.error(`Failed to add LLM: ${error.message}`);
     } finally {
@@ -344,13 +391,19 @@ const AdminDashboard = () => {
       toast.error("Authentication required to delete models.");
       return;
     }
-    if (window.confirm(`Are you sure you want to delete the LLM with ID: ${modelIdToDelete}?`)) {
+    if (
+      window.confirm(
+        `Are you sure you want to delete the LLM with ID: ${modelIdToDelete}?`
+      )
+    ) {
       setIsMutating(true);
       try {
         await fetchApi(`/llm-manager/models/${modelIdToDelete}`, authToken, {
           method: "DELETE",
         });
-        setLlms((prevLlms) => prevLlms.filter((llm) => llm.id !== modelIdToDelete));
+        setLlms((prevLlms) =>
+          prevLlms.filter((llm) => llm.id !== modelIdToDelete)
+        );
         toast.success(`LLM '${modelIdToDelete}' deleted successfully.`);
       } catch (error) {
         toast.error(`Failed to delete LLM: ${error.message}`);
@@ -381,7 +434,7 @@ const AdminDashboard = () => {
   const activeUserCount = users.filter((u) => u.is_active).length;
   const totalUserCount = users.length;
   const totalLLMCount = llms.length;
-  const isSectionLoading = isLoading.users || isLoading.llms;
+  const isSectionLoading = isLoading.users || isLoading.llms || isLoading.stats;
 
   if (authLoading) {
     return (
@@ -452,7 +505,11 @@ const AdminDashboard = () => {
             </div>
             <span className="username">{user?.username || "User"}</span>
           </div>
-          <button type="button" onClick={handleLogout} className="logout-button">
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="logout-button"
+          >
             <FiLogOut size={16} className="logout-icon" />
             <span>Logout</span>
           </button>
@@ -462,14 +519,18 @@ const AdminDashboard = () => {
         <aside className="admin-sidebar">
           <nav className="admin-nav">
             <button
-              className={`nav-item ${activeSection === "overview" ? "active" : ""}`}
+              className={`nav-item ${
+                activeSection === "overview" ? "active" : ""
+              }`}
               onClick={() => setActiveSection("overview")}
             >
               <FiBarChart2 className="nav-icon" />
               <span>Overview</span>
             </button>
             <button
-              className={`nav-item ${activeSection === "users" ? "active" : ""}`}
+              className={`nav-item ${
+                activeSection === "users" ? "active" : ""
+              }`}
               onClick={() => setActiveSection("users")}
             >
               <FiUsers className="nav-icon" />
@@ -494,7 +555,8 @@ const AdminDashboard = () => {
         <main className="admin-main">
           {isSectionLoading || isMutating ? (
             <div className="loading-spinner">
-              <FiLoader className="spin-icon" /> {isMutating ? "Processing..." : "Loading..."}
+              <FiLoader className="spin-icon" />{" "}
+              {isMutating ? "Processing..." : "Loading..."}
             </div>
           ) : (
             <>
@@ -509,7 +571,9 @@ const AdminDashboard = () => {
                       <div className="stat-info">
                         <h3 className="stat-title">Total Users</h3>
                         <p className="stat-value">{totalUserCount}</p>
-                        <p className="stat-subvalue">{activeUserCount} Active</p>
+                        <p className="stat-subvalue">
+                          {activeUserCount} Active
+                        </p>
                       </div>
                     </div>
                     <div className="stat-card">
@@ -521,6 +585,66 @@ const AdminDashboard = () => {
                         <p className="stat-value">{totalLLMCount}</p>
                       </div>
                     </div>
+                    <div className="stat-card">
+                      <div className="stat-icon messages">
+                        <FiMessageCircle />
+                      </div>
+                      <div className="stat-info">
+                        <h3 className="stat-title">Total Admin Messages</h3>
+                        <p className="stat-value">
+                          {stats.total_admin_messages.toLocaleString()}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="stat-card">
+                      <div className="stat-icon conversations">
+                        <FiBarChart2 />
+                      </div>
+                      <div className="stat-info">
+                        <h3 className="stat-title">Total LLM Conversations</h3>
+                        <p className="stat-value">
+                          {stats.total_conversations.toLocaleString()}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="stat-card">
+                      <div className="stat-icon messages">
+                        <FiMessageCircle />
+                      </div>
+                      <div className="stat-info">
+                        <h3 className="stat-title">Total LLM Messages</h3>
+                        <p className="stat-value">
+                          {stats.total_messages.toLocaleString()}
+                        </p>
+                        <p className="stat-subvalue">
+                          Avg/Conv: {stats.avg_messages_per_conversation}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="stat-card">
+                      <div className="stat-icon users">
+                        <FiUsers />
+                      </div>
+                      <div className="stat-info">
+                        <h3 className="stat-title">User Activity</h3>
+                        <p className="stat-value">
+                          {stats.avg_conversations_per_user}
+                        </p>
+                        <p className="stat-subvalue">Avg Conv/User</p>
+                      </div>
+                    </div>
+                    <div className="stat-card">
+                      <div className="stat-icon tickets">
+                        <FiAlertCircle />
+                      </div>
+                      <div className="stat-info">
+                        <h3 className="stat-title">Support Tickets</h3>
+                        <p className="stat-value">
+                          {stats.avg_tickets_per_user}
+                        </p>
+                        <p className="stat-subvalue">Avg Tickets/User</p>
+                      </div>
+                    </div>
                   </div>
                 </section>
               )}
@@ -528,8 +652,15 @@ const AdminDashboard = () => {
                 <section className="admin-section">
                   <div className="section-header">
                     <h2 className="section-title">User Management</h2>
-                    <button className="action-button refresh-button" onClick={loadUsers} disabled={isLoading.users}>
-                      <FiRefreshCw className={isLoading.users ? "spin-icon" : ""} /> Refresh Users
+                    <button
+                      className="action-button refresh-button"
+                      onClick={loadUsers}
+                      disabled={isLoading.users}
+                    >
+                      <FiRefreshCw
+                        className={isLoading.users ? "spin-icon" : ""}
+                      />{" "}
+                      Refresh Users
                     </button>
                   </div>
                   <div className="table-container">
@@ -550,26 +681,49 @@ const AdminDashboard = () => {
                             <td>{u.username}</td>
                             <td>{u.email}</td>
                             <td>
-                              <span className={`role-badge ${u.role}`}>{u.role}</span>
+                              <span className={`role-badge ${u.role}`}>
+                                {u.role}
+                              </span>
                             </td>
                             <td>
                               <select
-                                className={`status-select ${u.is_active ? "active" : "disabled"}`}
+                                className={`status-select ${
+                                  u.is_active ? "active" : "disabled"
+                                }`}
                                 value={u.is_active ? "active" : "disabled"}
-                                onChange={(e) => handleUserStatusChange(u.id, e.target.value === "active")}
+                                onChange={(e) =>
+                                  handleUserStatusChange(
+                                    u.id,
+                                    e.target.value === "active"
+                                  )
+                                }
                                 disabled={isMutating || user?.id === u.id}
                               >
                                 <option value="active">Active</option>
                                 <option value="disabled">Disabled</option>
                               </select>
                             </td>
-                            <td>{u.last_login ? new Date(u.last_login).toLocaleString() : "N/A"}</td>
+                            <td>
+                              {u.last_login
+                                ? new Date(u.last_login).toLocaleString()
+                                : "N/A"}
+                            </td>
                             <td>
                               <div className="action-buttons">
-                                <button className="edit-button" onClick={() => handleOpenEditUserModal(u)} title="Edit user" disabled={isMutating}>
+                                <button
+                                  className="edit-button"
+                                  onClick={() => handleOpenEditUserModal(u)}
+                                  title="Edit user"
+                                  disabled={isMutating}
+                                >
                                   <FiEdit />
                                 </button>
-                                <button className="delete-button" onClick={() => handleDeleteUser(u.id)} title="Delete user" disabled={isMutating || user?.id === u.id}>
+                                <button
+                                  className="delete-button"
+                                  onClick={() => handleDeleteUser(u.id)}
+                                  title="Delete user"
+                                  disabled={isMutating || user?.id === u.id}
+                                >
                                   <FiTrash2 />
                                 </button>
                               </div>
@@ -579,7 +733,9 @@ const AdminDashboard = () => {
                       </tbody>
                     </table>
                     {filteredUsers.length === 0 && !isLoading.users && (
-                      <p className="no-data-message">No users found matching your criteria.</p>
+                      <p className="no-data-message">
+                        No users found matching your criteria.
+                      </p>
                     )}
                   </div>
                 </section>
@@ -609,32 +765,45 @@ const AdminDashboard = () => {
                               )}{" "}
                               Source:
                             </span>
-                            <span className="detail-value endpoint-value" title={llm.path}>
+                            <span
+                              className="detail-value endpoint-value"
+                              title={llm.path}
+                            >
                               {llm.path || "N/A"}
                             </span>
                           </div>
                           <div className="llm-detail">
                             <span className="detail-label">Context:</span>
-                            <span className="detail-value">{llm.context_window?.toLocaleString() || "N/A"}</span>
+                            <span className="detail-value">
+                              {llm.context_window?.toLocaleString() || "N/A"}
+                            </span>
                           </div>
                           <div className="llm-detail">
                             <span className="detail-label">Threads:</span>
-                            <span className="detail-value">{llm.n_threads || "N/A"}</span>
+                            <span className="detail-value">
+                              {llm.n_threads || "N/A"}
+                            </span>
                           </div>
                           <div className="llm-detail">
                             <span className="detail-label">GPU Layers:</span>
-                            <span className="detail-value">{llm.n_gpu_layers ?? "N/A"}</span>
+                            <span className="detail-value">
+                              {llm.n_gpu_layers ?? "N/A"}
+                            </span>
                           </div>
                           <div className="llm-detail">
                             <span className="detail-label">Temp:</span>
-                            <span className="detail-value">{llm.temperature ?? "N/A"}</span>
+                            <span className="detail-value">
+                              {llm.temperature ?? "N/A"}
+                            </span>
                           </div>
                         </div>
                       </div>
                     ))}
                     {filteredLLMs.length === 0 && !isLoading.llms && (
                       <p className="no-data-message">
-                        {llms.length === 0 ? "No LLMs configured." : "No LLMs found matching your criteria."}
+                        {llms.length === 0
+                          ? "No LLMs configured."
+                          : "No LLMs found matching your criteria."}
                       </p>
                     )}
                   </div>
@@ -670,6 +839,7 @@ const AdminDashboard = () => {
   );
 };
 
+// AdminChatSection, UserEditModal, and LLMAddModal remain unchanged
 const AdminChatSection = () => {
   const [tickets, setTickets] = useState([]);
   const [selectedTicketId, setSelectedTicketId] = useState(null);
@@ -680,7 +850,6 @@ const AdminChatSection = () => {
   const [error, setError] = useState(null);
   const messagesEndRef = useRef(null);
 
-  // Use getAllTickets() from the adminChatService for admin operations.
   const fetchTickets = useCallback(async () => {
     setIsLoadingTickets(true);
     setError(null);
@@ -709,7 +878,9 @@ const AdminChatSection = () => {
     fetchTickets();
   }, [fetchTickets]);
 
-  const selectedTicket = tickets.find((ticket) => ticket.id === selectedTicketId);
+  const selectedTicket = tickets.find(
+    (ticket) => ticket.id === selectedTicketId
+  );
 
   useEffect(() => {
     if (messagesEndRef.current) {
@@ -764,14 +935,19 @@ const AdminChatSection = () => {
     setNewMessage("");
 
     try {
-      const savedMessage = await adminChatService.addAdminMessage(selectedTicketId, contentToSend);
+      const savedMessage = await adminChatService.addAdminMessage(
+        selectedTicketId,
+        contentToSend
+      );
       setTickets((prevTickets) =>
         prevTickets.map((ticket) => {
           if (ticket.id === selectedTicketId) {
             return {
               ...ticket,
               messages: (ticket.messages || []).map((msg) =>
-                msg.id === optimisticId ? { ...savedMessage, optimistic: false } : msg
+                msg.id === optimisticId
+                  ? { ...savedMessage, optimistic: false }
+                  : msg
               ),
               updated_at: savedMessage.created_at,
             };
@@ -787,7 +963,9 @@ const AdminChatSection = () => {
             return {
               ...ticket,
               messages: (ticket.messages || []).map((msg) =>
-                msg.id === optimisticId ? { ...msg, error: true, optimistic: false } : msg
+                msg.id === optimisticId
+                  ? { ...msg, error: true, optimistic: false }
+                  : msg
               ),
             };
           }
@@ -806,7 +984,9 @@ const AdminChatSection = () => {
       const closedTicket = await adminChatService.closeTicket(selectedTicketId);
       setTickets((prevTickets) =>
         prevTickets.map((ticket) =>
-          ticket.id === selectedTicketId ? { ...ticket, status: closedTicket.status } : ticket
+          ticket.id === selectedTicketId
+            ? { ...ticket, status: closedTicket.status }
+            : ticket
         )
       );
       toast.success("Ticket closed successfully.");
@@ -822,10 +1002,14 @@ const AdminChatSection = () => {
     if (!selectedTicketId || isUpdatingTicket) return;
     setIsUpdatingTicket(true);
     try {
-      const reopenedTicket = await adminChatService.reopenTicket(selectedTicketId);
+      const reopenedTicket = await adminChatService.reopenTicket(
+        selectedTicketId
+      );
       setTickets((prevTickets) =>
         prevTickets.map((ticket) =>
-          ticket.id === selectedTicketId ? { ...ticket, status: reopenedTicket.status } : ticket
+          ticket.id === selectedTicketId
+            ? { ...ticket, status: reopenedTicket.status }
+            : ticket
         )
       );
       toast.success("Ticket reopened successfully.");
@@ -838,8 +1022,14 @@ const AdminChatSection = () => {
   };
 
   return (
-    <div className="admin-chat-container" style={{overflow: "-moz-hidden-unscrollable"}}>
-      <div className="admin-chat-sidebar" style={{ height: "calc(100vh - 80px)", marginRight: "1rem" }}>
+    <div
+      className="admin-chat-container"
+      style={{ overflow: "-moz-hidden-unscrollable" }}
+    >
+      <div
+        className="admin-chat-sidebar"
+        style={{ height: "calc(100vh - 80px)", marginRight: "1rem" }}
+      >
         <h2>Support Tickets</h2>
         {isLoadingTickets ? (
           <div className="loading-placeholder">
@@ -862,14 +1052,22 @@ const AdminChatSection = () => {
             {tickets.map((ticket) => (
               <div
                 key={ticket.id}
-                className={`ticket-item ${selectedTicketId === ticket.id ? "active" : ""} ${ticket.status}`}
+                className={`ticket-item ${
+                  selectedTicketId === ticket.id ? "active" : ""
+                } ${ticket.status}`}
                 onClick={() => setSelectedTicketId(ticket.id)}
               >
                 <div className="ticket-item-content">
-                  <div className="ticket-title">{ticket.title || "No Title"}</div>
+                  <div className="ticket-title">
+                    {ticket.title || "No Title"}
+                  </div>
                   <div className="ticket-meta">
-                    <span className={`ticket-status ${ticket.status}`}>{ticket.status}</span>
-                    <span className="ticket-date">{formatDate(ticket.created_at)}</span>
+                    <span className={`ticket-status ${ticket.status}`}>
+                      {ticket.status}
+                    </span>
+                    <span className="ticket-date">
+                      {formatDate(ticket.created_at)}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -884,23 +1082,47 @@ const AdminChatSection = () => {
               <div className="admin-chat-info">
                 <h2>{selectedTicket.title || "No Title"}</h2>
                 <div className="admin-chat-meta">
-                  <span className={`ticket-status ${selectedTicket.status}`}>{selectedTicket.status}</span>
-                  <span className="ticket-date">Created: {formatDate(selectedTicket.created_at)}</span>
+                  <span className={`ticket-status ${selectedTicket.status}`}>
+                    {selectedTicket.status}
+                  </span>
+                  <span className="ticket-date">
+                    Created: {formatDate(selectedTicket.created_at)}
+                  </span>
                   {selectedTicket.updated_at !== selectedTicket.created_at && (
-                    <span className="ticket-date">Updated: {formatDate(selectedTicket.updated_at)}</span>
+                    <span className="ticket-date">
+                      Updated: {formatDate(selectedTicket.updated_at)}
+                    </span>
                   )}
                 </div>
               </div>
               <div className="admin-chat-actions">
                 {selectedTicket.status !== "closed" ? (
-                  <button className="close-reopen-button" onClick={handleCloseTicket} disabled={isUpdatingTicket} title="Close Ticket">
+                  <button
+                    className="close-reopen-button"
+                    onClick={handleCloseTicket}
+                    disabled={isUpdatingTicket}
+                    title="Close Ticket"
+                  >
                     <FiX size={16} />
-                    {isUpdatingTicket ? <FiLoader className="spinner" size={16} /> : "Close Ticket"}
+                    {isUpdatingTicket ? (
+                      <FiLoader className="spinner" size={16} />
+                    ) : (
+                      "Close Ticket"
+                    )}
                   </button>
                 ) : (
-                  <button class="close-reopen-button" onClick={handleReopenTicket} disabled={isUpdatingTicket} title="Reopen Ticket">
+                  <button
+                    className="close-reopen-button"
+                    onClick={handleReopenTicket}
+                    disabled={isUpdatingTicket}
+                    title="Reopen Ticket"
+                  >
                     <FiRepeat size={16} />
-                    {isUpdatingTicket ? <FiLoader className="spinner" size={16} /> : "Reopen Ticket"}
+                    {isUpdatingTicket ? (
+                      <FiLoader className="spinner" size={16} />
+                    ) : (
+                      "Reopen Ticket"
+                    )}
                   </button>
                 )}
               </div>
@@ -910,19 +1132,34 @@ const AdminChatSection = () => {
                 selectedTicket.messages.map((message) => (
                   <div
                     key={message.id}
-                    className={`message ${message.is_admin ? "admin-message" : "user-message"} ${message.optimistic ? "optimistic" : ""} ${message.error ? "error" : ""}`}
+                    className={`message ${
+                      message.is_admin ? "admin-message" : "user-message"
+                    } ${message.optimistic ? "optimistic" : ""} ${
+                      message.error ? "error" : ""
+                    }`}
                   >
-                    <div className="message-content">{message.content || ""}</div>
+                    <div className="message-content">
+                      {message.content || ""}
+                    </div>
                     <div className="message-meta">
-                      {message.is_admin && message.admin_name && <span className="admin-name">{message.admin_name}</span>}
-                      <span className="message-time">{formatDate(message.created_at)}</span>
-                      {message.error && <FiAlertCircle className="error-icon" size={12} />}
+                      {message.is_admin && message.admin_name && (
+                        <span className="admin-name">{message.admin_name}</span>
+                      )}
+                      <span className="message-time">
+                        {formatDate(message.created_at)}
+                      </span>
+                      {message.error && (
+                        <FiAlertCircle className="error-icon" size={12} />
+                      )}
                     </div>
                   </div>
                 ))
               ) : (
                 <div className="no-messages">
-                  <FiMessageCircle size={48} style={{ marginBottom: "1rem", opacity: 0.7 }} />
+                  <FiMessageCircle
+                    size={48}
+                    style={{ marginBottom: "1rem", opacity: 0.7 }}
+                  />
                   <p>No messages yet. Start the conversation!</p>
                 </div>
               )}
@@ -932,7 +1169,9 @@ const AdminChatSection = () => {
               {selectedTicket.status === "closed" ? (
                 <div className="ticket-closed-message">
                   <FiAlertCircle size={20} />
-                  <span>This ticket is closed. Reopen it to send messages.</span>
+                  <span>
+                    This ticket is closed. Reopen it to send messages.
+                  </span>
                 </div>
               ) : (
                 <>
@@ -949,8 +1188,16 @@ const AdminChatSection = () => {
                       }
                     }}
                   />
-                  <button class="send-button" sendonClick={handleSendAdminMessage} disabled={!newMessage.trim() || isSending}>
-                    {isSending ? <FiLoader className="spinner" size={20} /> : <FiSend size={20} />}
+                  <button
+                    className="send-button"
+                    onClick={handleSendAdminMessage}
+                    disabled={!newMessage.trim() || isSending}
+                  >
+                    {isSending ? (
+                      <FiLoader className="spinner" size={20} />
+                    ) : (
+                      <FiSend size={20} />
+                    )}
                   </button>
                 </>
               )}
@@ -958,9 +1205,14 @@ const AdminChatSection = () => {
           </>
         ) : (
           <div className="empty-state">
-            <FiMessageCircle size={48} style={{ marginBottom: "1rem", opacity: 0.7 }} />
+            <FiMessageCircle
+              size={48}
+              style={{ marginBottom: "1rem", opacity: 0.7 }}
+            />
             <h2>Manage Support Tickets</h2>
-            <p>Select a ticket to view details and communicate with the user.</p>
+            <p>
+              Select a ticket to view details and communicate with the user.
+            </p>
           </div>
         )}
       </div>
@@ -968,10 +1220,13 @@ const AdminChatSection = () => {
   );
 };
 
-// -----------------------------------------------------------------------------
-// Modal Components (UserEditModal & LLMAddModal)
-// -----------------------------------------------------------------------------
-const UserEditModal = ({ user: userToEdit, currentAdminUser, onClose, onSave, isLoading }) => {
+const UserEditModal = ({
+  user: userToEdit,
+  currentAdminUser,
+  onClose,
+  onSave,
+  isLoading,
+}) => {
   const [formData, setFormData] = useState({
     username: userToEdit?.username || "",
     email: userToEdit?.email || "",
@@ -1000,23 +1255,53 @@ const UserEditModal = ({ user: userToEdit, currentAdminUser, onClose, onSave, is
         <form onSubmit={handleSubmit}>
           <div className="modal-header">
             <h3>Edit User ({userToEdit?.username})</h3>
-            <button type="button" className="close-button" onClick={onClose} disabled={isLoading}>
+            <button
+              type="button"
+              className="close-button"
+              onClick={onClose}
+              disabled={isLoading}
+            >
               ×
             </button>
           </div>
           <div className="modal-body">
             <div className="form-group">
               <label htmlFor="username">Username</label>
-              <input type="text" id="username" name="username" className="form-input" value={formData.username} readOnly disabled />
+              <input
+                type="text"
+                id="username"
+                name="username"
+                className="form-input"
+                value={formData.username}
+                readOnly
+                disabled
+              />
               <small>Username cannot be changed.</small>
             </div>
             <div className="form-group">
               <label htmlFor="email">Email *</label>
-              <input type="email" id="email" name="email" className="form-input" value={formData.email} onChange={handleChange} required disabled={isLoading} />
+              <input
+                type="email"
+                id="email"
+                name="email"
+                className="form-input"
+                value={formData.email}
+                onChange={handleChange}
+                required
+                disabled={isLoading}
+              />
             </div>
             <div className="form-group">
               <label htmlFor="role">Role *</label>
-              <select id="role" name="role" className="form-select" value={formData.role} onChange={handleChange} required disabled={isLoading || isEditingSelf}>
+              <select
+                id="role"
+                name="role"
+                className="form-select"
+                value={formData.role}
+                onChange={handleChange}
+                required
+                disabled={isLoading || isEditingSelf}
+              >
                 <option value="user">User</option>
                 <option value="technician">Technician</option>
                 <option value="admin">Administrator</option>
@@ -1025,7 +1310,12 @@ const UserEditModal = ({ user: userToEdit, currentAdminUser, onClose, onSave, is
             </div>
           </div>
           <div className="modal-footer">
-            <button type="button" className="cancel-button" onClick={onClose} disabled={isLoading}>
+            <button
+              type="button"
+              className="cancel-button"
+              onClick={onClose}
+              disabled={isLoading}
+            >
               Cancel
             </button>
             <button type="submit" className="save-button" disabled={isLoading}>
@@ -1060,7 +1350,9 @@ const LLMAddModal = ({ onClose, onAdd, isLoading }) => {
         type === "checkbox"
           ? checked
           : type === "number"
-          ? value === "" ? "" : Number(value)
+          ? value === ""
+            ? ""
+            : Number(value)
           : value,
     }));
   };
@@ -1092,7 +1384,12 @@ const LLMAddModal = ({ onClose, onAdd, isLoading }) => {
         <form onSubmit={handleSubmit}>
           <div className="modal-header">
             <h3>Add New LLM Configuration</h3>
-            <button type="button" className="close-button" onClick={onClose} disabled={isLoading}>
+            <button
+              type="button"
+              className="close-button"
+              onClick={onClose}
+              disabled={isLoading}
+            >
               ×
             </button>
           </div>
@@ -1127,7 +1424,9 @@ const LLMAddModal = ({ onClose, onAdd, isLoading }) => {
                     disabled={isLoading || !!formData.file_name}
                     placeholder="https://huggingface.co/.../gguf-quant.bin"
                   />
-                  <small>URL to download the model from (e.g., Hugging Face).</small>
+                  <small>
+                    URL to download the model from (e.g., Hugging Face).
+                  </small>
                 </div>
                 <span className="or-divider">OR</span>
                 <div className="form-group">
@@ -1142,14 +1441,25 @@ const LLMAddModal = ({ onClose, onAdd, isLoading }) => {
                     disabled={isLoading || !!formData.model_url}
                     placeholder="/path/on/server/model.gguf"
                   />
-                  <small>Path to the model file <em>on the server</em>.</small>
+                  <small>
+                    Path to the model file.
+                  </small>
                 </div>
               </div>
-              <small className="required-hint">Provide either a URL or a server file path.</small>
+              <small className="required-hint">
+                Provide either a URL or a server file path.
+              </small>
             </div>
             <div className="form-group">
               <label htmlFor="model_type">Model Type</label>
-              <select id="model_type" name="model_type" className="form-select" value={formData.model_type} onChange={handleChange} disabled={isLoading}>
+              <select
+                id="model_type"
+                name="model_type"
+                className="form-select"
+                value={formData.model_type}
+                onChange={handleChange}
+                disabled={isLoading}
+              >
                 <option value="llama">Llama (GGUF)</option>
               </select>
               <small>Type of the model architecture.</small>
@@ -1200,7 +1510,9 @@ const LLMAddModal = ({ onClose, onAdd, isLoading }) => {
                   disabled={isLoading}
                   placeholder="e.g., 0 (CPU) or 35"
                 />
-                <small>Number of layers to offload to GPU (if available).</small>
+                <small>
+                  Number of layers to offload to GPU (if available).
+                </small>
               </div>
               <div className="form-group">
                 <label htmlFor="temperature">Temperature</label>
@@ -1259,12 +1571,18 @@ const LLMAddModal = ({ onClose, onAdd, isLoading }) => {
                 Download only (do not load into memory yet)
               </label>
               <small>
-                If checked, the model will be downloaded but not immediately loaded for use.
+                If checked, the model will be downloaded but not immediately
+                loaded for use.
               </small>
             </div>
           </div>
           <div className="modal-footer">
-            <button type="button" className="cancel-button" onClick={onClose} disabled={isLoading}>
+            <button
+              type="button"
+              className="cancel-button"
+              onClick={onClose}
+              disabled={isLoading}
+            >
               Cancel
             </button>
             <button type="submit" className="save-button" disabled={isLoading}>
