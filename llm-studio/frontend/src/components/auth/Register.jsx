@@ -3,7 +3,13 @@ import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 import { toast } from "react-toastify";
-import { FiUser, FiMail, FiLock, FiAlertCircle, FiLoader } from "react-icons/fi";
+import {
+  FiUser,
+  FiMail,
+  FiLock,
+  FiAlertCircle,
+  FiLoader,
+} from "react-icons/fi";
 import "./Register.css";
 
 const Register = () => {
@@ -25,7 +31,7 @@ const Register = () => {
 
   useEffect(() => {
     if (isAuthenticated) {
-      navigate('/dashboard');
+      navigate("/dashboard");
     }
   }, [isAuthenticated, navigate]);
 
@@ -297,7 +303,8 @@ const Register = () => {
     }
 
     if (!termsAccepted) {
-      newErrors.terms = "You must accept the Terms of Service and Privacy Policy";
+      newErrors.terms =
+        "You must accept the Terms of Service and Privacy Policy";
     }
 
     setErrors(newErrors);
@@ -321,7 +328,10 @@ const Register = () => {
         setErrors({ ...errors, general: error.response.data.detail });
       } else {
         toast.error("Registration failed. Please try again.");
-        setErrors({ ...errors, general: "Registration failed. Please try again." });
+        setErrors({
+          ...errors,
+          general: "Registration failed. Please try again.",
+        });
       }
     } finally {
       setIsLoading(false);
@@ -331,16 +341,41 @@ const Register = () => {
   return (
     <div className="register-container">
       {/* Particle network animation background */}
-      <div className="particle-network-animation" ref={particleContainerRef}></div>
+      <div
+        className="particle-network-animation"
+        ref={particleContainerRef}
+      ></div>
 
       <div className="register-card">
         <div className="glass-effect"></div>
         <div className="register-header">
           <div className="register-logo">
-            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="#4F5E99" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              <path d="M2 17L12 22L22 17" stroke="#4F5E99" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              <path d="M2 12L12 17L22 12" stroke="#4F5E99" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M12 2L2 7L12 12L22 7L12 2Z"
+                stroke="#4F5E99"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M2 17L12 22L22 17"
+                stroke="#4F5E99"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M2 12L12 17L22 12"
+                stroke="#4F5E99"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
             </svg>
           </div>
           <h1 className="register-title">LLM Studio</h1>
@@ -355,104 +390,145 @@ const Register = () => {
             </div>
           )}
 
-          <div className="form-group">
-            <label htmlFor="username" className="form-label">Username</label>
-            <input
-              id="username"
-              name="username"
-              type="text"
-              autoComplete="username"
-              required
-              value={formData.username}
-              onChange={handleChange}
-              className={`form-input ${errors.username ? "input-error" : ""}`}
-              placeholder="Choose a username"
-              disabled={isLoading}
-            />
-            {errors.username && <p className="error-message">{errors.username}</p>}
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="email" className="form-label">Email</label>
-            <input
-              id="email"
-              name="email"
-              type="email"
-              autoComplete="email"
-              required
-              value={formData.email}
-              onChange={handleChange}
-              className={`form-input ${errors.email ? "input-error" : ""}`}
-              placeholder="Enter your email"
-              disabled={isLoading}
-            />
-            {errors.email && <p className="error-message">{errors.email}</p>}
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="role" className="form-label">Role</label>
-            <select
-              id="role"
-              name="role"
-              value={formData.role}
-              onChange={handleChange}
-              className="form-input"
-              disabled={isLoading}
-            >
-              <option value="user">User</option>
-              <option value="admin">Admin</option>
-              <option value="technician">Technician</option>
-            </select>
-            {errors.role && <p className="error-message">{errors.role}</p>}
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="password" className="form-label">Password</label>
-            <input
-              id="password"
-              name="password"
-              type="password"
-              autoComplete="new-password"
-              required
-              value={formData.password}
-              onChange={handleChange}
-              className={`form-input ${errors.password ? "input-error" : ""}`}
-              placeholder="Create a password"
-              disabled={isLoading}
-            />
-            {formData.password && (
-              <div className="password-strength-container">
-                <div className="password-strength">
-                  <div className={`password-strength-bar ${getStrengthClass()}`}></div>
-                </div>
-                <span className="password-strength-text">{getStrengthText()}</span>
+          {/* New container for the three-column layout */}
+          <div className="form-columns">
+            {/* Left Column: Username and Email */}
+            <div className="form-column form-column-left">
+              <div className="form-group">
+                <label htmlFor="username" className="form-label">
+                  Username
+                </label>
+                <input
+                  id="username"
+                  name="username"
+                  type="text"
+                  autoComplete="username"
+                  required
+                  value={formData.username}
+                  onChange={handleChange}
+                  className={`form-input ${
+                    errors.username ? "input-error" : ""
+                  }`}
+                  placeholder="Choose a username"
+                  disabled={isLoading}
+                />
+                {errors.username && (
+                  <p className="error-message">{errors.username}</p>
+                )}
               </div>
-            )}
-            {errors.password && <p className="error-message">{errors.password}</p>}
+
+              <div className="form-group">
+                <label htmlFor="email" className="form-label">
+                  Email
+                </label>
+                <input
+                  id="email"
+                  name="email"
+                  type="email"
+                  autoComplete="email"
+                  required
+                  value={formData.email}
+                  onChange={handleChange}
+                  className={`form-input ${errors.email ? "input-error" : ""}`}
+                  placeholder="Enter your email"
+                  disabled={isLoading}
+                />
+                {errors.email && (
+                  <p className="error-message">{errors.email}</p>
+                )}
+              </div>
+            </div>
+
+            {/* Middle Column: Role */}
+            <div className="form-column form-column-middle">
+              <div className="form-group">
+                <label htmlFor="role" className="form-label">
+                  Role
+                </label>
+                <select
+                  id="role"
+                  name="role"
+                  value={formData.role}
+                  onChange={handleChange}
+                  className="form-input"
+                  disabled={isLoading}
+                >
+                  <option value="user">User</option>
+                  <option value="admin">Admin</option>
+                  <option value="technician">Technician</option>
+                </select>
+                {errors.role && <p className="error-message">{errors.role}</p>}
+              </div>
+            </div>
+
+            {/* Right Column: Password and Confirm Password */}
+            <div className="form-column form-column-right">
+              <div className="form-group">
+                <label htmlFor="password" className="form-label">
+                  Password
+                </label>
+                <input
+                  id="password"
+                  name="password"
+                  type="password"
+                  autoComplete="new-password"
+                  required
+                  value={formData.password}
+                  onChange={handleChange}
+                  className={`form-input ${
+                    errors.password ? "input-error" : ""
+                  }`}
+                  placeholder="Create a password"
+                  disabled={isLoading}
+                />
+                {formData.password && (
+                  <div className="password-strength-container">
+                    <div className="password-strength">
+                      <div
+                        className={`password-strength-bar ${getStrengthClass()}`}
+                      ></div>
+                    </div>
+                    <span className="password-strength-text">
+                      {getStrengthText()}
+                    </span>
+                  </div>
+                )}
+                {errors.password && (
+                  <p className="error-message">{errors.password}</p>
+                )}
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="confirmPassword" className="form-label">
+                  Confirm Password
+                </label>
+                <input
+                  id="confirmPassword"
+                  name="confirmPassword"
+                  type="password"
+                  autoComplete="new-password"
+                  required
+                  value={formData.confirmPassword}
+                  onChange={handleChange}
+                  className={`form-input ${
+                    errors.confirmPassword ? "input-error" : ""
+                  }`}
+                  placeholder="Confirm your password"
+                  disabled={isLoading}
+                />
+                {errors.confirmPassword && (
+                  <p className="error-message">{errors.confirmPassword}</p>
+                )}
+              </div>
+            </div>
           </div>
 
-          <div className="form-group">
-            <label htmlFor="confirmPassword" className="form-label">Confirm Password</label>
-            <input
-              id="confirmPassword"
-              name="confirmPassword"
-              type="password"
-              autoComplete="new-password"
-              required
-              value={formData.confirmPassword}
-              onChange={handleChange}
-              className={`form-input ${errors.confirmPassword ? "input-error" : ""}`}
-              placeholder="Confirm your password"
-              disabled={isLoading}
-            />
-            {errors.confirmPassword && <p className="error-message">{errors.confirmPassword}</p>}
-          </div>
-
+          {/* Terms and Submit Button */}
           <div className="form-terms">
             <div className="terms-check">
-              <input 
-                type="checkbox" 
-                id="terms" 
+              <input
+                type="checkbox"
+                id="terms"
                 className="checkbox"
                 required
                 checked={termsAccepted}
@@ -460,7 +536,14 @@ const Register = () => {
                 disabled={isLoading}
               />
               <label htmlFor="terms">
-                I agree to the <Link to="/terms" className="terms-link">Terms of Service</Link> and <Link to="/privacy" className="terms-link">Privacy Policy</Link>
+                I agree to the{" "}
+                <Link to="/terms" className="terms-link">
+                  Terms of Service
+                </Link>{" "}
+                and{" "}
+                <Link to="/privacy" className="terms-link">
+                  Privacy Policy
+                </Link>
               </label>
             </div>
             {errors.terms && <p className="error-message">{errors.terms}</p>}

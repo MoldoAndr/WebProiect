@@ -8,11 +8,31 @@ from app.services.user_service import (
     update_user,
     delete_user,
     get_user_by_username,
-    update_user_role
+    update_user_role,
+    change_password
 )
 from app.core.security import get_current_user, get_admin_user
 
 router = APIRouter()
+
+@router.delete("/me/history")
+async def delete_user_history(current_user: User = Depends(get_current_user)):
+    """Delete current user's conversation history"""
+    db = await get_database()
+    await db.conversations.delete_many({"user_id": ObjectId(current_user.id)})  # Assuming a conversations collection
+    return {"detail": "Conversation history deleted successfully"}
+
+@router.get("/me/export")
+async def export_user_data(current_user: User = Depends(get_current_user)):
+    """Export current user's data"""
+    db = await get_database()
+    user_data = await db.users.find_one({"_id": ObjectId(current_user.id)})
+    conversations = await db.conversations.find({"user_id": ObjectId(current_user.id)}).to_list(None)
+    export_data = {
+        "user": user_data,
+        "conversations": conversations
+    }
+    return JSONResponse(content=export_data)
 
 @router.get("/", response_model=List[UserResponse])
 async def read_users(
@@ -80,6 +100,16 @@ async def delete_user_by_id(
         raise HTTPException(status_code=404, detail="User not found")
     
     return None
+
+@router.post("/change-password", response_model=dict)
+async def change_user_password(
+    old_password: str = Body(...),
+    new_password: str = Body(...),
+    current_user: User = Depends(get_current_user)
+):
+    """Change current user's password"""
+    updated_user = await change_password(current_user.id, old_password, new_password)
+    return {"detail": "Password updated successfully"}
 
 @router.put("/{user_id}/role", response_model=UserResponse)
 async def update_user_role_endpoint(

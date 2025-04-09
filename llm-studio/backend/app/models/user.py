@@ -37,3 +37,9 @@ class User(UserBase):
     
     class Config:
         from_attributes = True
+
+class UserPreferences(BaseModel):
+    darkMode: bool = True
+    animationsEnabled: bool = True
+    compactMode: bool = False
+    fontSize: str = "medium"

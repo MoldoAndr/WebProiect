@@ -329,3 +329,44 @@
     height: 48px;
   }
 }
+
+/* Register.css */
+
+/* Container for the three-column layout */
+.form-columns {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px; /* Space between columns */
+  margin-bottom: 20px;
+}
+
+/* Styling for each column */
+.form-column {
+  flex: 1; /* Each column takes equal space */
+  min-width: 0; /* Prevents overflow issues */
+}
+
+/* Optional: Adjust the middle column to be narrower if desired */
+.form-column-middle {
+  flex: 0.8; /* Slightly narrower than the others */
+}
+
+/* Ensure form groups within columns take full width */
+.form-column .form-group {
+  width: 100%;
+}
+
+/* Responsive adjustments for smaller screens */
+@media (max-width: 768px) {
+  .form-columns {
+    flex-direction: column; /* Stack columns vertically on small screens */
+  }
+
+  .form-column {
+    flex: 1; /* Reset flex for single-column layout */
+  }
+
+  .form-column-middle {
+    flex: 1; /* Reset flex for single-column layout */
+  }
+}
