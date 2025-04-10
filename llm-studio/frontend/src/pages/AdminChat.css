@@ -227,6 +227,32 @@ h2
   font-size: 0.7rem;
 }
 
+.message {
+  /* existing rules, if any */
+  position: relative;
+}
+
+.new-message {
+  opacity: 0;          /* start transparent */
+  animation: fadeIn 0.4s forwards; /* fade in over 0.4s */
+}
+
+@keyframes fadeIn {
+  to {
+    opacity: 1; 
+  }
+}
+
+/* Optionally handle the .optimistic, .error classes, etc. */
+.optimistic {
+  /* e.g. you could style for messages that haven't confirmed yet */
+  filter: opacity(0.8);
+}
+
+.error {
+  border: 1px solid red;
+}
+
 /* New ticket form */
 .new-ticket-form {
   padding: 1rem;

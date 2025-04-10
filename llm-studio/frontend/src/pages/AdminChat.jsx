@@ -6,8 +6,8 @@ import {
   FiInfo,
   FiAlertCircle,
   FiMessageCircle,
-  FiLoader, // Added for loading indicators
-  FiPlus, // Icon for New Ticket button
+  FiLoader,
+  FiPlus,
 } from "react-icons/fi";
 import { useAuth } from "../hooks/useAuth";
 import { adminChatService } from "../services/admin-chat.service";
@@ -31,55 +31,114 @@ const AdminChat = () => {
 
   const messagesEndRef = useRef(null);
 
-  // --- Data Fetching ---
-  const fetchTickets = useCallback(async () => {
-    setIsLoadingTickets(true);
-    setError(null);
+  const firstLoadRef = useRef(true);
 
+  const fetchTickets = useCallback(async () => {
     try {
+      if (firstLoadRef.current) {
+        setIsLoadingTickets(true);
+      }
+
       const response = await adminChatService.getUserTickets();
 
-      // If your server returns an array of tickets with a property "_id",
-      // map them to have "id" so the rest of the code is consistent.
       if (Array.isArray(response)) {
         const normalizedTickets = response.map((t) => ({
           ...t,
-          id: t._id || t.id, // Prefer _id if it exists, else use id
+          id: t._id || t.id,
         }));
-        setTickets(normalizedTickets);
+
+        setTickets((prevTickets) => {
+          let hasChanges = false;
+
+          const updatedTickets = normalizedTickets.map((newTicket) => {
+            const existingTicket = prevTickets.find(
+              (t) => t.id === newTicket.id
+            );
+            if (existingTicket) {
+              const existingMessages = existingTicket.messages || [];
+              const newMessages = newTicket.messages || [];
+
+              const hasNewMessages =
+                newMessages.length >
+                  existingMessages.filter((m) => !m.optimistic).length ||
+                newMessages.some(
+                  (newMsg) =>
+                    !existingMessages.some(
+                      (oldMsg) => oldMsg.id === newMsg.id && !oldMsg.optimistic
+                    )
+                );
+
+              const hasStatusChange = existingTicket.status !== newTicket.status;
+
+              if (hasNewMessages || hasStatusChange) {
+                hasChanges = true;
+                const mergedMessages = [
+                  ...existingMessages.filter((msg) => msg.optimistic),
+                  ...newMessages.filter(
+                    (newMsg) =>
+                      !existingMessages.some(
+                        (oldMsg) =>
+                          oldMsg.id === newMsg.id && !oldMsg.optimistic
+                      )
+                  ),
+                ];
+                return { ...newTicket, messages: mergedMessages };
+              }
+              return existingTicket;
+            } else {
+              hasChanges = true;
+              return newTicket;
+            }
+          });
+
+          if (!hasChanges && prevTickets.length === normalizedTickets.length) {
+            return prevTickets;
+          }
+
+          const newTicketIds = new Set(normalizedTickets.map((t) => t.id));
+          const additionalTickets = prevTickets.filter(
+            (t) => !newTicketIds.has(t.id)
+          );
+
+          return [...updatedTickets, ...additionalTickets];
+        });
       } else {
         console.warn("API response for tickets was not an array:", response);
         setError("Received invalid data format for tickets.");
-        setTickets([]);
         toast.error("Failed to load tickets: Invalid data format.");
       }
     } catch (err) {
       console.error("Error fetching tickets:", err);
       setError("Failed to load support tickets. Please try again later.");
-      setTickets([]);
       toast.error("Failed to load support tickets.");
     } finally {
-      setIsLoadingTickets(false);
+      if (firstLoadRef.current) {
+        firstLoadRef.current = false;
+        setIsLoadingTickets(false);
+      }
     }
   }, []);
 
   useEffect(() => {
     fetchTickets();
+
+    const intervalId = setInterval(() => {
+      fetchTickets();
+    }, 3000);
+
+    return () => clearInterval(intervalId);
   }, [fetchTickets]);
 
-  // --- Ticket Selection ---
   const selectedTicket = tickets.find(
     (ticket) => ticket.id === selectedTicketId
   );
 
-  // --- Scroll to bottom on messages update ---
   useEffect(() => {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
   }, [selectedTicket?.messages]);
 
-  // --- Helper: format date safely ---
   const formatDate = (dateString) => {
     if (!dateString) return "Invalid Date";
     try {
@@ -100,28 +159,12 @@ const AdminChat = () => {
     }
   };
 
-  // --- Handlers ---
   const handleBackToDashboard = () => {
     navigate("/dashboard");
   };
 
   const handleSendMessage = async () => {
-    console.log("handleSendMessage called");
-    console.log("Current state:", {
-      newMessage,
-      selectedTicketId,
-      isSending,
-      user,
-    });
-
-    if (!newMessage.trim() || !selectedTicketId || isSending) {
-      console.log("Early return due to:", {
-        noMessage: !newMessage.trim(),
-        noTicket: !selectedTicketId,
-        isSending,
-      });
-      return;
-    }
+    if (!newMessage.trim() || !selectedTicketId || isSending) return;
 
     setIsSending(true);
     const optimisticId = `optimistic-${Date.now()}`;
@@ -137,7 +180,6 @@ const AdminChat = () => {
       optimistic: true,
     };
 
-    // Optimistic UI: immediately show the message
     setTickets((prevTickets) =>
       prevTickets.map((ticket) => {
         if (ticket.id === selectedTicketId) {
@@ -157,7 +199,6 @@ const AdminChat = () => {
         contentToSend
       );
 
-      // Replace optimistic message with the real one from the server
       setTickets((prevTickets) =>
         prevTickets.map((ticket) => {
           if (ticket.id === selectedTicketId) {
@@ -177,7 +218,6 @@ const AdminChat = () => {
     } catch (error) {
       console.error("Error sending message:", error);
       toast.error("Failed to send message. Please try again.");
-      // Mark the optimistic message as failed
       setTickets((prevTickets) =>
         prevTickets.map((ticket) => {
           if (ticket.id === selectedTicketId) {
@@ -206,25 +246,18 @@ const AdminChat = () => {
     const subjectToSend = newTicketSubject;
 
     try {
-      // Create the ticket on the server
       const newTicketResponse = await adminChatService.createTicket(
         subjectToSend,
         null
       );
 
-      // Normalize the ticket so it has .id
       const newTicket = {
         ...newTicketResponse,
         id: newTicketResponse._id || newTicketResponse.id,
       };
 
-      // Add the new ticket to the top of the list
       setTickets((prevTickets) => [newTicket, ...prevTickets]);
-
-      // Auto-select it
       setSelectedTicketId(newTicket.id);
-
-      // Clear form
       setNewTicketSubject("");
       setShowNewTicketForm(false);
       toast.success("New support ticket created successfully!");
@@ -237,13 +270,10 @@ const AdminChat = () => {
     }
   };
 
-  // --- Render ---
   return (
     <div className="dashboard-container">
       <DashboardHeader user={user} />
-
       <div className="admin-chat-container">
-        {/* Sidebar */}
         <div
           className="admin-chat-sidebar"
           style={{
@@ -255,7 +285,6 @@ const AdminChat = () => {
             flexDirection: "column",
           }}
         >
-          {/* Back Button */}
           <div
             style={{
               padding: "0.75rem 1rem",
@@ -271,8 +300,6 @@ const AdminChat = () => {
               <span>Back to Dashboard</span>
             </button>
           </div>
-
-          {/* Sidebar Header */}
           <div className="admin-chat-sidebar-header" style={{ flexShrink: 0 }}>
             <h2>Tickets</h2>
             <button
@@ -284,8 +311,6 @@ const AdminChat = () => {
               <span>New Ticket</span>
             </button>
           </div>
-
-          {/* New Ticket Form */}
           {showNewTicketForm && (
             <div className="new-ticket-form" style={{ flexShrink: 0 }}>
               <input
@@ -318,13 +343,11 @@ const AdminChat = () => {
               </div>
             </div>
           )}
-
-          {/* Tickets List */}
           <div
             className="tickets-list"
             style={{ flexGrow: 1, overflowY: "auto" }}
           >
-            {isLoadingTickets ? (
+            {firstLoadRef.current && isLoadingTickets ? (
               <div className="loading-placeholder">
                 <FiLoader className="spinner" size={24} />
                 <span>Loading tickets...</span>
@@ -374,12 +397,9 @@ const AdminChat = () => {
             )}
           </div>
         </div>
-
-        {/* Main Chat Area */}
         <div className="admin-chat-main">
           {selectedTicket ? (
             <>
-              {/* Chat Header */}
               <div className="admin-chat-header">
                 <div className="admin-chat-info">
                   <h2>{String(selectedTicket.title ?? "No Title")}</h2>
@@ -399,49 +419,48 @@ const AdminChat = () => {
                   </div>
                 </div>
               </div>
-
-              {/* Messages */}
               <div className="admin-chat-messages">
                 {!selectedTicket.messages ||
                 selectedTicket.messages.length === 0 ? (
                   <div className="no-messages">
                     <FiInfo size={48} />
-                    <p>No messages yet. Start the conversation!</p>
+                    <p>Setting up...</p>
                   </div>
                 ) : (
-                  selectedTicket.messages.map((message) => (
-                    <div
-                      key={message.id}
-                      className={`message ${
-                        message.is_admin ? "admin-message" : "user-message"
-                      } ${message.optimistic ? "optimistic" : ""} ${
-                        message.error ? "error" : ""
-                      }`}
-                      title={message.error ? "Failed to send" : ""}
-                    >
-                      <div className="message-content">
-                        {String(message.content ?? "")}
-                      </div>
-                      <div className="message-meta">
-                        {message.is_admin && message.admin_name && (
-                          <span className="admin-name">
-                            {message.admin_name}
+                  selectedTicket.messages.map((message) => {
+                    const isNewMessage = !!message.optimistic;
+                    return (
+                      <div
+                        key={message.id}
+                        className={`message ${
+                          message.is_admin ? "admin-message" : "user-message"
+                        } ${message.optimistic ? "optimistic" : ""} ${
+                          message.error ? "error" : ""
+                        } ${isNewMessage ? "new-message" : ""}`}
+                        title={message.error ? "Failed to send" : ""}
+                      >
+                        <div className="message-content">
+                          {String(message.content ?? "")}
+                        </div>
+                        <div className="message-meta">
+                          {message.is_admin && message.admin_name && (
+                            <span className="admin-name">
+                              {message.admin_name}
+                            </span>
+                          )}
+                          <span className="message-time">
+                            {formatDate(message.created_at)}
                           </span>
-                        )}
-                        <span className="message-time">
-                          {formatDate(message.created_at)}
-                        </span>
-                        {message.error && (
-                          <FiAlertCircle className="error-icon" size={12} />
-                        )}
+                          {message.error && (
+                            <FiAlertCircle className="error-icon" size={12} />
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
                 <div ref={messagesEndRef} />
               </div>
-
-              {/* Input Area */}
               <div className="admin-chat-input">
                 {selectedTicket.status === "closed" ? (
                   <div className="ticket-closed-message">
@@ -468,10 +487,7 @@ const AdminChat = () => {
                     />
                     <button
                       className="send-button"
-                      onClick={() => {
-                        console.log("Send button clicked");
-                        handleSendMessage();
-                      }}
+                      onClick={handleSendMessage}
                       disabled={!newMessage.trim() || isSending}
                     >
                       {isSending ? (

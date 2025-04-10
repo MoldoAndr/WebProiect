@@ -107,7 +107,6 @@ class AdminChatService {
         url += `?status=${status}`;
       }
       const response = await axios.get(url);
-      // Normalize each ticket and its messages
       return response.data.map((t) => normalizeTicket(t));
     } catch (error) {
       console.error('Error fetching all tickets (admin):', error);

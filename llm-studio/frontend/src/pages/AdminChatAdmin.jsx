@@ -29,13 +29,13 @@ const AdminChatAdmin = () => {
   const [error, setError] = useState(null);
 
   const messagesEndRef = useRef(null);
+  const firstLoadRef = useRef(true);
 
-  // Fetch tickets using the admin endpoint
   const fetchTickets = useCallback(async () => {
     setIsLoadingTickets(true);
     setError(null);
     try {
-      const response = await adminChatService.getAdminTickets();
+      const response = await adminChatService.getAllTickets();
       if (Array.isArray(response)) {
         const normalizedTickets = response.map((t) => ({
           ...t,
@@ -45,34 +45,42 @@ const AdminChatAdmin = () => {
       } else {
         setError("Invalid data format for tickets.");
         setTickets([]);
-        toast.error("Failed to load tickets: Invalid data format.");
       }
     } catch (err) {
       console.error("Error fetching tickets:", err);
       setError("Failed to load tickets. Please try again later.");
       setTickets([]);
-      toast.error("Failed to load tickets.");
     } finally {
       setIsLoadingTickets(false);
     }
   }, []);
-
   useEffect(() => {
+    // Initial fetch
     fetchTickets();
-  }, [fetchTickets]);
+
+    // Set up polling interval
+    const intervalId = setInterval(() => {
+      console.log("Polling tickets..."); // Debug log to confirm polling
+      fetchTickets();
+    }, 3000);
+
+    // Cleanup interval on unmount
+    return () => {
+      console.log("Cleaning up interval"); // Debug log to confirm cleanup
+      clearInterval(intervalId);
+    };
+  }, [fetchTickets]); // fetchTickets as dependency ensures it’s stable
 
   const selectedTicket = tickets.find(
     (ticket) => ticket.id === selectedTicketId
   );
 
-  // Scroll to the bottom whenever messages update
   useEffect(() => {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
   }, [selectedTicket?.messages]);
 
-  // Helper function to format dates
   const formatDate = (dateString) => {
     if (!dateString) return "Invalid Date";
     try {
@@ -95,7 +103,6 @@ const AdminChatAdmin = () => {
     navigate("/dashboard");
   };
 
-  // Handle sending an admin message
   const handleSendAdminMessage = async () => {
     if (!newMessage.trim() || !selectedTicketId || isSending) return;
     setIsSending(true);
@@ -112,7 +119,6 @@ const AdminChatAdmin = () => {
       optimistic: true,
     };
 
-    // Optimistically update the UI
     setTickets((prevTickets) =>
       prevTickets.map((ticket) => {
         if (ticket.id === selectedTicketId) {
@@ -137,7 +143,9 @@ const AdminChatAdmin = () => {
             return {
               ...ticket,
               messages: (ticket.messages || []).map((msg) =>
-                msg.id === optimisticId ? { ...savedMessage, optimistic: false } : msg
+                msg.id === optimisticId
+                  ? { ...savedMessage, optimistic: false }
+                  : msg
               ),
               updated_at: savedMessage.created_at,
             };
@@ -168,7 +176,6 @@ const AdminChatAdmin = () => {
     }
   };
 
-  // Handle closing a ticket
   const handleCloseTicket = async () => {
     if (!selectedTicketId || isUpdatingTicket) return;
     setIsUpdatingTicket(true);
@@ -176,7 +183,9 @@ const AdminChatAdmin = () => {
       const closedTicket = await adminChatService.closeTicket(selectedTicketId);
       setTickets((prevTickets) =>
         prevTickets.map((ticket) =>
-          ticket.id === selectedTicketId ? { ...ticket, status: closedTicket.status } : ticket
+          ticket.id === selectedTicketId
+            ? { ...ticket, status: closedTicket.status }
+            : ticket
         )
       );
       toast.success("Ticket closed successfully.");
@@ -188,15 +197,18 @@ const AdminChatAdmin = () => {
     }
   };
 
-  // Handle reopening a ticket
   const handleReopenTicket = async () => {
     if (!selectedTicketId || isUpdatingTicket) return;
     setIsUpdatingTicket(true);
     try {
-      const reopenedTicket = await adminChatService.reopenTicket(selectedTicketId);
+      const reopenedTicket = await adminChatService.reopenTicket(
+        selectedTicketId
+      );
       setTickets((prevTickets) =>
         prevTickets.map((ticket) =>
-          ticket.id === selectedTicketId ? { ...ticket, status: reopenedTicket.status } : ticket
+          ticket.id === selectedTicketId
+            ? { ...ticket, status: reopenedTicket.status }
+            : ticket
         )
       );
       toast.success("Ticket reopened successfully.");
@@ -212,7 +224,6 @@ const AdminChatAdmin = () => {
     <div className="dashboard-container">
       <DashboardHeader user={user} />
       <div className="admin-chat-container">
-        {/* Sidebar */}
         <div
           className="admin-chat-sidebar"
           style={{
@@ -224,7 +235,6 @@ const AdminChatAdmin = () => {
             flexDirection: "column",
           }}
         >
-          {/* Back Button */}
           <div
             style={{
               padding: "0.75rem 1rem",
@@ -240,15 +250,14 @@ const AdminChatAdmin = () => {
               <span>Back to Dashboard</span>
             </button>
           </div>
-
-          {/* Sidebar Header */}
           <div className="admin-chat-sidebar-header" style={{ flexShrink: 0 }}>
             <h2>All Support Tickets</h2>
           </div>
-
-          {/* Tickets List */}
-          <div className="tickets-list" style={{ flexGrow: 1, overflowY: "auto" }}>
-            {isLoadingTickets ? (
+          <div
+            className="tickets-list"
+            style={{ flexGrow: 1, overflowY: "auto" }}
+          >
+            {firstLoadRef.current && isLoadingTickets ? (
               <div className="loading-placeholder">
                 <FiLoader className="spinner" size={24} />
                 <span>Loading tickets...</span>
@@ -276,7 +285,9 @@ const AdminChatAdmin = () => {
                   onClick={() => setSelectedTicketId(ticket.id)}
                   role="button"
                   tabIndex={0}
-                  onKeyDown={(e) => e.key === "Enter" && setSelectedTicketId(ticket.id)}
+                  onKeyDown={(e) =>
+                    e.key === "Enter" && setSelectedTicketId(ticket.id)
+                  }
                 >
                   <div className="ticket-item-content">
                     <div className="ticket-title">
@@ -287,7 +298,7 @@ const AdminChatAdmin = () => {
                         {ticket.status}
                       </span>
                       <span className="ticket-date">
-                        {formatDate(ticket.created_at)}
+                        {formatDate(ticket.updated_at || ticket.created_at)}
                       </span>
                     </div>
                   </div>
@@ -296,12 +307,9 @@ const AdminChatAdmin = () => {
             )}
           </div>
         </div>
-
-        {/* Main Chat Area */}
         <div className="admin-chat-main">
           {selectedTicket ? (
             <>
-              {/* Chat Header */}
               <div className="admin-chat-header">
                 <div className="admin-chat-info">
                   <h2>{String(selectedTicket.title ?? "No Title")}</h2>
@@ -351,53 +359,55 @@ const AdminChatAdmin = () => {
                   )}
                 </div>
               </div>
-
-              {/* Messages */}
               <div className="admin-chat-messages">
-                {!selectedTicket.messages || selectedTicket.messages.length === 0 ? (
+                {!selectedTicket.messages ||
+                selectedTicket.messages.length === 0 ? (
                   <div className="no-messages">
                     <FiInfo size={48} />
                     <p>No messages yet. Start the conversation!</p>
                   </div>
                 ) : (
-                  selectedTicket.messages.map((message) => (
-                    <div
-                      key={message.id}
-                      className={`message ${
-                        message.is_admin ? "admin-message" : "user-message"
-                      } ${message.optimistic ? "optimistic" : ""} ${
-                        message.error ? "error" : ""
-                      }`}
-                      title={message.error ? "Failed to send" : ""}
-                    >
-                      <div className="message-content">
-                        {String(message.content ?? "")}
-                      </div>
-                      <div className="message-meta">
-                        {message.is_admin && message.admin_name && (
-                          <span className="admin-name">
-                            {message.admin_name}
+                  selectedTicket.messages.map((message) => {
+                    const isNewMessage = !!message.optimistic;
+                    return (
+                      <div
+                        key={message.id}
+                        className={`message ${
+                          message.is_admin ? "admin-message" : "user-message"
+                        } ${message.optimistic ? "optimistic" : ""} ${
+                          message.error ? "error" : ""
+                        } ${isNewMessage ? "new-message" : ""}`}
+                        title={message.error ? "Failed to send" : ""}
+                      >
+                        <div className="message-content">
+                          {String(message.content ?? "")}
+                        </div>
+                        <div className="message-meta">
+                          {message.is_admin && message.admin_name && (
+                            <span className="admin-name">
+                              {message.admin_name}
+                            </span>
+                          )}
+                          <span className="message-time">
+                            {formatDate(message.created_at)}
                           </span>
-                        )}
-                        <span className="message-time">
-                          {formatDate(message.created_at)}
-                        </span>
-                        {message.error && (
-                          <FiAlertCircle className="error-icon" size={12} />
-                        )}
+                          {message.error && (
+                            <FiAlertCircle className="error-icon" size={12} />
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
                 <div ref={messagesEndRef} />
               </div>
-
-              {/* Input Area for Admin Message */}
               <div className="admin-chat-input">
                 {selectedTicket.status === "closed" ? (
                   <div className="ticket-closed-message">
                     <FiAlertCircle size={20} />
-                    <span>This ticket is closed. Reopen it to send messages.</span>
+                    <span>
+                      This ticket is closed. Reopen it to send messages.
+                    </span>
                   </div>
                 ) : (
                   <>
@@ -431,7 +441,10 @@ const AdminChatAdmin = () => {
             </>
           ) : (
             <div className="empty-state">
-              <FiMessageCircle size={48} style={{ marginBottom: "1rem", opacity: 0.7 }} />
+              <FiMessageCircle
+                size={48}
+                style={{ marginBottom: "1rem", opacity: 0.7 }}
+              />
               <h2>Manage Support Tickets</h2>
               <p>Select a ticket to view details and communicate with the user.</p>
             </div>

@@ -23,7 +23,7 @@ const DashboardHeader = ({ user }) => {
         {/* Left side - Logo with animation */}
         <div className="header-left">
           <div className="logo">
-            <FiCpu className="logo-icon" size={24} />
+            <FiCpu className="logo-icon" size={32} />
             <span className="logo-text-primary">LLM</span>
             <span className="logo-text-secondary">Studio</span>
           </div>

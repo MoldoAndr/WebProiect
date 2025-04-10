@@ -37,15 +37,15 @@
   
   .logo-text-primary {
     color: #5c70e2;
-    font-weight: 700;
-    font-size: 1rem;
+    font-weight: 600;
+    font-size: 0.75rem;
     letter-spacing: 0.025em;
   }
   
   .logo-text-secondary {
     color: #e2e8f0;
-    font-weight: 700;
-    font-size: 1rem;
+    font-weight: 600;
+    font-size: 0.75rem;
     margin-left: 0.1rem;
   }
   

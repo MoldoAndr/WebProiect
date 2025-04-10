@@ -476,7 +476,6 @@ body {
   margin-top: 1rem;
 }
 
-/* Modal styling */
 .modal-backdrop {
   position: fixed;
   top: 0;
@@ -669,7 +668,6 @@ body {
   transform: translateY(-1px);
 }
 
-/* Responsive adjustments */
 @media (max-width: 768px) {
   .technician-header {
     flex-direction: column;
@@ -711,7 +709,6 @@ body {
   }
 }
 
-/* Additional header styles for technician and admin buttons */
 .technician-button,
 .admin-button {
   display: flex;
@@ -770,7 +767,6 @@ body {
   color: #93a4ff;
 }
 
-/* Make the role labels color-coded */
 .user-info .user-role:is(:contains('admin')) {
   background-color: rgba(154, 52, 180, 0.2);
   border-color: rgba(154, 52, 180, 0.3);
@@ -783,7 +779,6 @@ body {
   color: #63b3ed;
 }
 
-/* Responsive adjustments for header elements */
 @media (max-width: 768px) {
 
   .technician-button,
@@ -796,54 +791,47 @@ body {
   }
 }
 
-/* In your AdminDashboard.css or relevant CSS file */
 
 .admin-dashboard.technician-dashboard {
-  /* Your existing background styles here... */
   background-image: linear-gradient(to top, rgba(19, 21, 26, 0), #0e1116 75%), url("../utils/technician_background.png");
   background-size: cover;
   background-position: center;
   background-attachment: fixed;
-  padding: 0; /* Remove padding from root if background should go edge-to-edge */
+  padding: 0;
   color: #e2e8f0;
-  min-height: 100vh; /* Ensure it covers viewport height */
-  display: flex; /* Add flex to manage header/content layout */
-  flex-direction: column; /* Stack header and content vertically */
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
 }
 
 .admin-header {
-  /* Ensure header doesn't have an opaque background unless intended */
-   background-color: rgba(14, 17, 22, 0.8); /* Example: slightly transparent dark header */
-   backdrop-filter: blur(5px); /* Optional: nice effect for transparent header */
-   padding: 0.75rem 1.5rem; /* Adjust padding as needed */
-   position: sticky; /* Make header sticky? */
+   background-color: rgba(14, 17, 22, 0.8);
+   backdrop-filter: blur(5px);
+   padding: 0.75rem 1.5rem;
+   position: sticky;
    top: 0;
-   z-index: 10; /* Ensure header is above content */
+   z-index: 10;
    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .admin-content {
-  flex-grow: 1; /* Allow content to fill remaining space */
-  background-color: transparent !important; /* Make absolutely sure it's transparent */
-  display: flex; /* Needed if admin-main needs to grow */
+  flex-grow: 1;
+  background-color: transparent !important;
+  display: flex;
 }
 
 .admin-main {
-  flex-grow: 1; /* Take remaining width/height within admin-content */
+  flex-grow: 1;
   padding: 1.5rem 2rem;
-  background-color: transparent !important; /* Also ensure this is transparent */
+  overflow-y: hidden;
+  background-color: transparent !important;
 }
 
-/* Adjust card opacity if needed */
 .llm-card {
-  background-color: rgba(26, 32, 44, 0.8); /* Slightly more opaque? Or less? */
-  /* ... other styles ... */
+  background-color: rgba(26, 32, 44, 0.8);
 }
 
-/* Ensure the body doesn't interfere */
 body {
-   margin: 0; /* Remove default body margin */
-   /* Remove the body background if the dashboard root handles it */
-   /* background-image: url("../utils/technician_background.png"); */
-   background-color: #0e1116; /* Fallback solid color */
+   margin: 0;
+   background-color: #0e1116;
 }

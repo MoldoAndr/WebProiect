@@ -839,7 +839,6 @@ const AdminDashboard = () => {
   );
 };
 
-// AdminChatSection, UserEditModal, and LLMAddModal remain unchanged
 const AdminChatSection = () => {
   const [tickets, setTickets] = useState([]);
   const [selectedTicketId, setSelectedTicketId] = useState(null);
@@ -851,8 +850,12 @@ const AdminChatSection = () => {
   const messagesEndRef = useRef(null);
 
   const fetchTickets = useCallback(async () => {
-    setIsLoadingTickets(true);
+    // Only show loading state on initial load
+    if (tickets.length === 0) {
+      setIsLoadingTickets(true);
+    }
     setError(null);
+
     try {
       const response = await adminChatService.getAllTickets();
       if (Array.isArray(response)) {
@@ -860,7 +863,18 @@ const AdminChatSection = () => {
           ...t,
           id: t._id || t.id,
         }));
-        setTickets(normalizedTickets);
+
+        // Deep comparison to check if tickets have actually changed
+        setTickets((prevTickets) => {
+          const prevString = JSON.stringify(prevTickets);
+          const newString = JSON.stringify(normalizedTickets);
+          if (prevString !== newString) {
+            console.log("Tickets updated, applying new data.");
+            return normalizedTickets;
+          }
+          console.log("No changes detected in tickets.");
+          return prevTickets; // Return previous state to avoid re-render
+        });
       } else {
         setError("Invalid data format for tickets.");
         setTickets([]);
@@ -870,12 +884,24 @@ const AdminChatSection = () => {
       setError("Failed to load tickets. Please try again later.");
       setTickets([]);
     } finally {
-      setIsLoadingTickets(false);
+      if (tickets.length === 0) {
+        setIsLoadingTickets(false);
+      }
     }
-  }, []);
+  }, [tickets.length]); // Depend on tickets.length to handle initial load correctly
 
   useEffect(() => {
-    fetchTickets();
+    fetchTickets(); // Initial load
+    const intervalId = setInterval(() => {
+      console.log("Polling tickets...");
+      fetchTickets();
+    }, 3000);
+
+    // Cleanup on unmount
+    return () => {
+      console.log("Clearing ticket polling interval");
+      clearInterval(intervalId);
+    };
   }, [fetchTickets]);
 
   const selectedTicket = tickets.find(
@@ -1441,9 +1467,7 @@ const LLMAddModal = ({ onClose, onAdd, isLoading }) => {
                     disabled={isLoading || !!formData.model_url}
                     placeholder="/path/on/server/model.gguf"
                   />
-                  <small>
-                    Path to the model file.
-                  </small>
+                  <small>Path to the model file.</small>
                 </div>
               </div>
               <small className="required-hint">
