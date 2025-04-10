@@ -100,7 +100,7 @@ services:
     depends_on:
       - backend
     networks:
-      - llm-studio-network
+      - llm-studio-network 
 
   nginx:
     image: nginx:alpine
