@@ -229,3 +229,11 @@ Această separare previne accesul neautorizat la funcții critice – de exemplu
 tehnicianul poate afecta modul de funcționare al LLM-urilor – și în același timp 
 oferă fiecărui tip de utilizator o interfață adaptată nevoilor sale (utilizatorii nu 
 văd meniurile de administrare, iar tehnicienii au în plus meniuri pentru LLM-uri).
+
+Cont de test:
+	Admin: 
+		username: andrei
+		parola: 123456
+	Utilizator:
+		username: utilizator
+		parola: andrei
